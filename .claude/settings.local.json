@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(ls -la /Users/leo/Desktop/project\\\\\\(github\\\\\\)/workout-app)",
+      "Bash(head:*)"
+    ]
+  }
+}

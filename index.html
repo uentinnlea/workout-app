@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Workout">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>Workout Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="app-header">
+    <h1>💪 Workout</h1>
+    <div class="header-date" id="header-date"></div>
+  </div>
+
+  <!-- Workout Tab -->
+  <div class="tab-content" id="tab-workout">
+    <div class="pad">
+
+      <!-- Idle state -->
+      <div id="state-idle">
+        <div class="empty-state">
+          <div class="hero-icon">🏋️</div>
+          <h2>Ready to train?</h2>
+          <p>Start a new workout to log your exercises, sets, and weight.</p>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="startWorkout()">Start Workout</button>
+      </div>
+
+      <!-- Active workout -->
+      <div id="state-active" style="display:none">
+        <div class="workout-banner">
+          <div>
+            <div class="timer-label">Duration</div>
+            <div id="timer-display">0:00</div>
+          </div>
+          <button class="btn-finish" onclick="finishWorkout()">Finish</button>
+        </div>
+        <div id="exercises-list"></div>
+        <button class="btn btn-surface btn-full" style="margin-top:4px" onclick="openExerciseModal()">
+          + Add New Exercise
+        </button>
+        <div style="display:flex;justify-content:center;margin-top:10px">
+          <button class="btn btn-danger-ghost btn-sm" onclick="cancelWorkout()">Cancel Workout</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- History Tab -->
+  <div class="tab-content" id="tab-history" style="display:none">
+    <div class="pad">
+      <div class="sec-header">
+        <div class="sec-title">History</div>
+        <div class="unit-toggle">
+          <button class="unit-btn active" id="btn-lbs" onclick="setUnit('lbs')">lbs</button>
+          <button class="unit-btn" id="btn-kg" onclick="setUnit('kg')">kg</button>
+        </div>
+      </div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tbtn-workout" onclick="switchTab('workout')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="9" width="5" height="6" rx="1.5"/>
+        <rect x="16" y="9" width="5" height="6" rx="1.5"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
+      </svg>
+      Workout
+    </button>
+    <button class="tab-btn" id="tbtn-history" onclick="switchTab('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <polyline points="12 7 12 12 15 15"/>
+      </svg>
+      History
+    </button>
+  </div>
+
+</div>
+
+<!-- Add Exercise Modal -->
+<div class="modal-overlay" id="modal-exercise" onclick="onOverlayClick(event,'modal-exercise')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Add Exercise</div>
+      <button class="btn-icon" onclick="closeModal('modal-exercise')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="ex-search" type="text" class="search-input"
+               placeholder="Search or enter exercise name…"
+               oninput="onSearchInput(this.value)"
+               autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="chips-label">Common Exercises</div>
+      <div class="chips-wrap" id="chips"></div>
+      <button class="btn btn-primary btn-full" onclick="confirmAddExercise()">Add Exercise</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="modal-confirm" onclick="onOverlayClick(event,'modal-confirm')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-body" style="padding-top:20px;text-align:center">
+      <p id="confirm-msg" style="font-size:17px;line-height:1.5;margin-bottom:24px;color:var(--text)"></p>
+      <button class="btn btn-danger btn-full" id="confirm-yes">Confirm</button>
+      <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="closeModal('modal-confirm')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
