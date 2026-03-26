@@ -1,5 +1,6 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'wt-data-v1';
+const API = 'http://localhost:8000';
 
 const EXERCISES = [
   'Bench Press', 'Incline Bench Press', 'Decline Bench Press', 'Dumbbell Fly', 'Push-ups', 'Cable Fly',
@@ -19,24 +20,57 @@ const s = {
   unit: 'lbs',
 };
 
-let timerInterval = null;
+let authToken = localStorage.getItem('wt-token') || null;
+let authMode  = 'login'; // 'login' | 'register'
+
+let restInterval = null;
+let restRemaining = 0;
+let restElapsed = 0;
+let restMode = null; // 'countdown' | 'stopwatch'
 let selectedEx = '';
 let chipFilter = '';
 let confirmCb = null;
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
-function load() {
-  try {
-    const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    s.history = d.history || [];
-    s.unit = d.unit || 'lbs';
-  } catch {}
+
+// API returns snake_case, frontend uses camelCase — normalize on the way in
+function normalizeWorkout(w) {
+  return { id: w.id, startTime: w.start_time, endTime: w.end_time, duration: w.duration, exercises: w.exercises };
 }
 
-function save() {
+function apiHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` };
+}
+
+async function loadHistory() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ history: s.history, unit: s.unit }));
-  } catch {}
+    const res = await fetch(`${API}/workouts`, { headers: apiHeaders() });
+    if (res.status === 401) { logout(); return; }
+    const data = await res.json();
+    s.history = data.map(normalizeWorkout);
+  } catch {
+    console.error('Backend unreachable — history unavailable.');
+    s.history = [];
+  }
+}
+
+async function postWorkout(workout) {
+  const res = await fetch(`${API}/workouts`, {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({
+      id:         workout.id,
+      start_time: workout.startTime,
+      end_time:   workout.endTime,
+      duration:   workout.duration,
+      exercises:  workout.exercises,
+    }),
+  });
+  if (!res.ok) throw new Error('Save failed');
+}
+
+function saveUnit() {
+  try { localStorage.setItem('wt-unit', s.unit); } catch {}
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,13 +112,12 @@ function toDisplayWeight(lbsVal) {
 // ─── Workout ──────────────────────────────────────────────────────────────────
 function startWorkout() {
   s.workout = { id: uid(), startTime: Date.now(), exercises: [] };
-  startTimer();
   renderWorkout();
 }
 
 function cancelWorkout() {
   showConfirm('Cancel this workout? All progress will be lost.', () => {
-    stopTimer();
+    cancelRest();
     s.workout = null;
     renderWorkout();
   });
@@ -92,11 +125,17 @@ function cancelWorkout() {
 
 function finishWorkout() {
   if (!s.workout) return;
-  const proceed = () => {
-    const dur = Math.floor((Date.now() - s.workout.startTime) / 1000);
-    s.history.unshift({ ...s.workout, endTime: Date.now(), duration: dur });
-    save();
-    stopTimer();
+  const proceed = async () => {
+    const endTime = Date.now();
+    const dur = Math.floor((endTime - s.workout.startTime) / 1000);
+    const finished = { ...s.workout, endTime, duration: dur };
+    try {
+      await postWorkout(finished);
+    } catch {
+      console.error('Failed to save workout to backend.');
+    }
+    s.history.unshift(finished);
+    cancelRest();
     s.workout = null;
     renderWorkout();
     renderHistory();
@@ -109,21 +148,69 @@ function finishWorkout() {
   }
 }
 
-// ─── Timer ────────────────────────────────────────────────────────────────────
-function startTimer() {
-  stopTimer();
-  timerInterval = setInterval(tickTimer, 1000);
+// ─── Rest Timer / Stopwatch ───────────────────────────────────────────────────
+function startCountdown(sec) {
+  cancelRest();
+  restMode = 'countdown';
+  restRemaining = sec;
+  updateRestDisplay();
+  showCancelBtn(true);
+  restInterval = setInterval(() => {
+    restRemaining--;
+    if (restRemaining <= 0) {
+      cancelRest();
+    } else {
+      updateRestDisplay();
+    }
+  }, 1000);
 }
 
-function stopTimer() {
-  clearInterval(timerInterval);
-  timerInterval = null;
+function toggleStopwatch() {
+  if (restMode === 'stopwatch' && restInterval) {
+    clearInterval(restInterval);
+    restInterval = null;
+    document.getElementById('rest-sw-btn').textContent = 'Resume';
+  } else {
+    if (restMode !== 'stopwatch') {
+      cancelRest();
+      restMode = 'stopwatch';
+      restElapsed = 0;
+    }
+    showCancelBtn(true);
+    document.getElementById('rest-sw-btn').textContent = 'Pause';
+    restInterval = setInterval(() => {
+      restElapsed++;
+      updateRestDisplay();
+    }, 1000);
+  }
 }
 
-function tickTimer() {
-  const el = document.getElementById('timer-display');
-  if (el && s.workout) {
-    el.textContent = fmtDur(Math.floor((Date.now() - s.workout.startTime) / 1000));
+function cancelRest() {
+  clearInterval(restInterval);
+  restInterval = null;
+  restRemaining = 0;
+  restElapsed = 0;
+  restMode = null;
+  showCancelBtn(false);
+  const btn = document.getElementById('rest-sw-btn');
+  if (btn) btn.textContent = 'Stopwatch';
+  updateRestDisplay();
+}
+
+function showCancelBtn(show) {
+  const btn = document.getElementById('rest-cancel-btn');
+  if (btn) btn.style.display = show ? '' : 'none';
+}
+
+function updateRestDisplay() {
+  const el = document.getElementById('rest-countdown');
+  if (!el) return;
+  if (restMode === 'stopwatch') {
+    el.textContent = fmtDur(restElapsed);
+  } else if (restMode === 'countdown') {
+    el.textContent = fmtDur(restRemaining);
+  } else {
+    el.textContent = '0:00';
   }
 }
 
@@ -205,7 +292,6 @@ function renderWorkout() {
     idle.style.display = 'none';
     active.style.display = '';
     renderExercises();
-    tickTimer();
   } else {
     idle.style.display = '';
     active.style.display = 'none';
@@ -323,9 +409,9 @@ function switchTab(tab) {
 // ─── Unit ─────────────────────────────────────────────────────────────────────
 function setUnit(u) {
   s.unit = u;
-  document.getElementById('btn-lbs').classList.toggle('active', u === 'lbs');
-  document.getElementById('btn-kg').classList.toggle('active', u === 'kg');
-  save();
+  ['btn-lbs', 'btn-lbs2'].forEach(id => document.getElementById(id)?.classList.toggle('active', u === 'lbs'));
+  ['btn-kg',  'btn-kg2' ].forEach(id => document.getElementById(id)?.classList.toggle('active', u === 'kg'));
+  saveUnit();
   renderHistory();
   if (s.workout) renderExercises();
 }
@@ -345,14 +431,83 @@ function showConfirm(msg, cb) {
   openModal('modal-confirm');
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+function showAuthScreen() {
+  document.getElementById('auth-screen').style.display = '';
+  document.getElementById('app').style.display = 'none';
+}
+
+function hideAuthScreen() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  document.getElementById('auth-title').textContent      = authMode === 'login' ? 'Login' : 'Sign Up';
+  document.getElementById('auth-toggle-btn').textContent = authMode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Login';
+}
+
+async function submitAuth() {
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errorEl  = document.getElementById('auth-error');
+
+  if (!email || !password) {
+    errorEl.textContent = 'Please fill in all fields.';
+    errorEl.style.display = '';
+    return;
+  }
+
+  try {
+    const res  = await fetch(`${API}/${authMode}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errorEl.textContent = data.detail || 'Something went wrong.';
+      errorEl.style.display = '';
+      return;
+    }
+    authToken = data.token;
+    localStorage.setItem('wt-token', authToken);
+    errorEl.style.display = 'none';
+    hideAuthScreen();
+    await loadHistory();
+    renderHistory();
+    renderWorkout();
+  } catch {
+    errorEl.textContent = 'Cannot connect to server.';
+    errorEl.style.display = '';
+  }
+}
+
+function logout() {
+  authToken = null;
+  localStorage.removeItem('wt-token');
+  s.history = [];
+  s.workout = null;
+  cancelRest();
+  showAuthScreen();
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
-function init() {
-  load();
+async function init() {
+  s.unit = localStorage.getItem('wt-unit') || 'lbs';
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
   });
-  document.getElementById('btn-lbs').classList.toggle('active', s.unit === 'lbs');
-  document.getElementById('btn-kg').classList.toggle('active', s.unit === 'kg');
+  ['btn-lbs', 'btn-lbs2'].forEach(id => document.getElementById(id)?.classList.toggle('active', s.unit === 'lbs'));
+  ['btn-kg',  'btn-kg2' ].forEach(id => document.getElementById(id)?.classList.toggle('active', s.unit === 'kg'));
+
+  if (!authToken) {
+    showAuthScreen();
+    return;
+  }
+
+  await loadHistory();
   renderHistory();
   renderWorkout();
 

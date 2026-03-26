@@ -26,6 +26,44 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* ── Auth screen ── */
+#auth-screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-card h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.auth-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--surface3);
+  border-radius: var(--r);
+  color: var(--text);
+  font-size: 16px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  outline: none;
+}
+.auth-input:focus { border-color: var(--accent); }
+.auth-error {
+  color: #ff453a;
+  font-size: 14px;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -172,7 +210,31 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+}
+
+/* ── Rest timer ── */
+#rest-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px;
+  margin-bottom: 12px;
+}
+#rest-timer-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: var(--r);
+  padding: 12px 18px;
+  margin-bottom: 12px;
+}
+#rest-countdown {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
 }
 
 .timer-label {

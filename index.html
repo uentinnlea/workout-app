@@ -12,12 +12,28 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- Auth Screen -->
+<div id="auth-screen" style="display:none">
+  <div class="auth-card">
+    <h2 id="auth-title">Login</h2>
+    <input id="auth-email" type="email" class="auth-input" placeholder="Email" autocomplete="email">
+    <input id="auth-password" type="password" class="auth-input" placeholder="Password" autocomplete="current-password">
+    <div id="auth-error" class="auth-error" style="display:none"></div>
+    <button class="btn btn-primary btn-full" onclick="submitAuth()">Continue</button>
+    <button class="btn btn-ghost btn-full" id="auth-toggle-btn" onclick="toggleAuthMode()">Don't have an account? Sign up</button>
+  </div>
+</div>
+
 <div id="app">
 
   <!-- Header -->
   <div class="app-header">
     <h1>💪 Workout</h1>
-    <div class="header-date" id="header-date"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="header-date" id="header-date"></div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+    </div>
   </div>
 
   <!-- Workout Tab -->
@@ -37,11 +53,25 @@
       <!-- Active workout -->
       <div id="state-active" style="display:none">
         <div class="workout-banner">
-          <div>
-            <div class="timer-label">Duration</div>
-            <div id="timer-display">0:00</div>
+          <div class="unit-toggle">
+            <button class="unit-btn" id="btn-lbs2" onclick="setUnit('lbs')">lbs</button>
+            <button class="unit-btn" id="btn-kg2" onclick="setUnit('kg')">kg</button>
           </div>
           <button class="btn-finish" onclick="finishWorkout()">Finish</button>
+        </div>
+
+        <!-- Rest Timer / Stopwatch -->
+        <div id="rest-timer-box">
+          <div id="rest-countdown">0:00</div>
+          <button class="btn btn-ghost btn-sm" id="rest-cancel-btn" onclick="cancelRest()" style="display:none">Cancel</button>
+        </div>
+        <div id="rest-presets">
+          <span style="font-size:12px;color:var(--text3)">Timer:</span>
+          <button class="btn btn-ghost btn-sm" onclick="startCountdown(60)">60s</button>
+          <button class="btn btn-ghost btn-sm" onclick="startCountdown(90)">90s</button>
+          <button class="btn btn-ghost btn-sm" onclick="startCountdown(120)">120s</button>
+          <span style="font-size:12px;color:var(--text3);margin-left:4px">|</span>
+          <button class="btn btn-ghost btn-sm" id="rest-sw-btn" onclick="toggleStopwatch()">Stopwatch</button>
         </div>
         <div id="exercises-list"></div>
         <button class="btn btn-surface btn-full" style="margin-top:4px" onclick="openExerciseModal()">
