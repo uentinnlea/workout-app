@@ -27,6 +27,7 @@ let restInterval = null;
 let restRemaining = 0;
 let restElapsed = 0;
 let restMode = null; // 'countdown' | 'stopwatch'
+let ringEnabled = localStorage.getItem('wt-ring') !== 'off';
 let selectedEx = '';
 let chipFilter = '';
 let confirmCb = null;
@@ -159,10 +160,53 @@ function startCountdown(sec) {
     restRemaining--;
     if (restRemaining <= 0) {
       cancelRest();
+      if (ringEnabled) playRing();
     } else {
       updateRestDisplay();
     }
   }, 1000);
+}
+
+let ringLoopInterval = null;
+let ringAudioCtx     = null;
+
+function beepOnce(ctx) {
+  [0, 0.25, 0.5].forEach(offset => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.6, ctx.currentTime + offset);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.18);
+    osc.start(ctx.currentTime + offset);
+    osc.stop(ctx.currentTime + offset + 0.18);
+  });
+}
+
+function playRing() {
+  try {
+    ringAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    beepOnce(ringAudioCtx);
+    ringLoopInterval = setInterval(() => beepOnce(ringAudioCtx), 1500);
+    document.getElementById('ring-stop-btn').style.display = '';
+  } catch {}
+}
+
+function stopRing() {
+  clearInterval(ringLoopInterval);
+  ringLoopInterval = null;
+  if (ringAudioCtx) { ringAudioCtx.close(); ringAudioCtx = null; }
+  document.getElementById('ring-stop-btn').style.display = 'none';
+}
+
+function toggleRing() {
+  ringEnabled = !ringEnabled;
+  localStorage.setItem('wt-ring', ringEnabled ? 'on' : 'off');
+  document.getElementById('ring-icon-on').style.display  = ringEnabled ? '' : 'none';
+  document.getElementById('ring-icon-off').style.display = ringEnabled ? 'none' : '';
+  document.getElementById('ring-toggle-btn').classList.toggle('ring-off', !ringEnabled);
 }
 
 function toggleStopwatch() {
@@ -192,6 +236,7 @@ function cancelRest() {
   restElapsed = 0;
   restMode = null;
   showCancelBtn(false);
+  stopRing();
   const btn = document.getElementById('rest-sw-btn');
   if (btn) btn.textContent = 'Stopwatch';
   updateRestDisplay();
@@ -229,7 +274,6 @@ function onSearchInput(v) {
   const match = EXERCISES.find(e => e.toLowerCase() === v.trim().toLowerCase());
   selectedEx = match || v.trim();
   renderChips();
-  updateSelectionBar();
 }
 
 function renderChips() {
@@ -399,11 +443,145 @@ function toggleHist(card) {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.getElementById('tab-workout').style.display = tab === 'workout' ? '' : 'none';
-  document.getElementById('tab-history').style.display = tab === 'history' ? '' : 'none';
-  document.getElementById('tbtn-workout').classList.toggle('active', tab === 'workout');
-  document.getElementById('tbtn-history').classList.toggle('active', tab === 'history');
-  if (tab === 'history') renderHistory();
+  document.getElementById('tab-workout').style.display  = tab === 'workout'  ? '' : 'none';
+  document.getElementById('tab-history').style.display  = tab === 'history'  ? '' : 'none';
+  document.getElementById('tab-progress').style.display = tab === 'progress' ? '' : 'none';
+  document.getElementById('tbtn-workout').classList.toggle('active',  tab === 'workout');
+  document.getElementById('tbtn-history').classList.toggle('active',  tab === 'history');
+  document.getElementById('tbtn-progress').classList.toggle('active', tab === 'progress');
+  if (tab === 'history')  renderHistory();
+  if (tab === 'progress') renderProgress();
+}
+
+// ─── Progress / Charts ────────────────────────────────────────────────────────
+let chartVolume   = null;
+let chartStrength = null;
+
+function chartDefaults() {
+  return {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#888', font: { size: 11 } }, grid: { color: '#222' } },
+      y: { ticks: { color: '#888', font: { size: 11 } }, grid: { color: '#222' }, beginAtZero: false },
+    },
+  };
+}
+
+function renderProgress() {
+  const sorted = [...s.history].sort((a, b) => a.startTime - b.startTime);
+
+  if (sorted.length === 0) {
+    document.getElementById('progress-empty').style.display  = '';
+    document.getElementById('progress-charts').style.display = 'none';
+    return;
+  }
+  document.getElementById('progress-empty').style.display  = 'none';
+  document.getElementById('progress-charts').style.display = '';
+
+  renderVolumeChart(sorted);
+  populateExercisePicker(sorted);
+  renderStrengthChart();
+}
+
+function renderVolumeChart(sorted) {
+  const labels = sorted.map(w => {
+    const d = new Date(w.startTime);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+
+  const mult = s.unit === 'kg' ? 0.453592 : 1;
+  const data  = sorted.map(w => Math.round(totalVol(w) * mult));
+
+  document.getElementById('vol-unit-label').textContent = s.unit;
+
+  if (chartVolume) chartVolume.destroy();
+  chartVolume = new Chart(document.getElementById('chart-volume'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: '#6c8eff',
+        backgroundColor: 'rgba(108,142,255,0.12)',
+        pointBackgroundColor: '#6c8eff',
+        pointRadius: 4,
+        tension: 0.3,
+        fill: true,
+      }],
+    },
+    options: chartDefaults(),
+  });
+}
+
+function populateExercisePicker(sorted) {
+  const names = new Set();
+  sorted.forEach(w => w.exercises.forEach(ex => names.add(ex.name)));
+  const picker = document.getElementById('exercise-picker');
+  const prev   = picker.value;
+  picker.innerHTML = [...names].sort().map(n =>
+    `<option value="${esc(n)}"${n === prev ? ' selected' : ''}>${esc(n)}</option>`
+  ).join('');
+}
+
+function renderStrengthChart() {
+  const name   = document.getElementById('exercise-picker').value;
+  const sorted = [...s.history].sort((a, b) => a.startTime - b.startTime);
+
+  const points = [];
+  sorted.forEach(w => {
+    const ex = w.exercises.find(e => e.name === name);
+    if (!ex) return;
+    const maxW = Math.max(...ex.sets.map(s2 => parseFloat(s2.weight) || 0));
+    if (maxW > 0) {
+      const d = new Date(w.startTime);
+      points.push({
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        value: s.unit === 'kg' ? Math.round(maxW * 0.453592 * 10) / 10 : maxW,
+      });
+    }
+  });
+
+  const emptyEl = document.getElementById('strength-empty');
+  const canvas  = document.getElementById('chart-strength');
+
+  if (points.length < 2) {
+    emptyEl.style.display = '';
+    canvas.style.display  = 'none';
+    if (chartStrength) { chartStrength.destroy(); chartStrength = null; }
+    return;
+  }
+  emptyEl.style.display = 'none';
+  canvas.style.display  = '';
+
+  if (chartStrength) chartStrength.destroy();
+  chartStrength = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: points.map(p => p.label),
+      datasets: [{
+        data:  points.map(p => p.value),
+        borderColor: '#4ecdc4',
+        backgroundColor: 'rgba(78,205,196,0.12)',
+        pointBackgroundColor: '#4ecdc4',
+        pointRadius: 4,
+        tension: 0.3,
+        fill: true,
+      }],
+    },
+    options: {
+      ...chartDefaults(),
+      plugins: {
+        ...chartDefaults().plugins,
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y} ${s.unit}`,
+          },
+        },
+      },
+    },
+  });
 }
 
 // ─── Unit ─────────────────────────────────────────────────────────────────────
@@ -493,6 +671,100 @@ function logout() {
   showAuthScreen();
 }
 
+// ─── CSV Import ───────────────────────────────────────────────────────────────
+function parseCSVLine(line) {
+  // Handle quoted fields
+  const fields = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  fields.push(cur.trim());
+  return fields;
+}
+
+async function importCSV(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return showImportStatus('CSV is empty or has no data rows.', 'error');
+
+  const header = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, ''));
+
+  const col = name => header.indexOf(name);
+  const dateIdx     = col('date');
+  const exerciseIdx = col('exercise');
+  const repsIdx     = col('reps');
+  const weightIdx   = col('weight');
+
+  if ([dateIdx, exerciseIdx, repsIdx, weightIdx].includes(-1)) {
+    return showImportStatus('CSV must have columns: date, exercise, reps, weight', 'error');
+  }
+
+  // Group rows by date → { date: { exerciseName: [sets] } }
+  const byDate = {};
+  for (let i = 1; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.length < 4) continue;
+    const date     = f[dateIdx]?.trim();
+    const exercise = f[exerciseIdx]?.trim();
+    const reps     = f[repsIdx]?.trim();
+    const weight   = f[weightIdx]?.trim();
+    if (!date || !exercise) continue;
+
+    if (!byDate[date]) byDate[date] = {};
+    if (!byDate[date][exercise]) byDate[date][exercise] = [];
+    byDate[date][exercise].push({ reps: reps || '', weight: weight || '' });
+  }
+
+  const dates = Object.keys(byDate).sort();
+  if (!dates.length) return showImportStatus('No valid rows found in CSV.', 'error');
+
+  // Build workout objects and POST each one
+  let saved = 0, skipped = 0;
+  for (const date of dates) {
+    const startMs  = new Date(date + 'T09:00:00').getTime();
+    const endMs    = startMs + 3600 * 1000; // assume 1 hr duration
+    const exercises = Object.entries(byDate[date]).map(([name, sets]) => ({
+      id: uid(), name, sets,
+    }));
+    const workout = {
+      id:         uid(),
+      startTime:  startMs,
+      endTime:    endMs,
+      duration:   3600,
+      exercises,
+    };
+    try {
+      await postWorkout(workout);
+      s.history.unshift(workout);
+      saved++;
+    } catch {
+      skipped++;
+    }
+  }
+
+  renderHistory();
+  const msg = skipped
+    ? `Imported ${saved} workout${saved !== 1 ? 's' : ''}. ${skipped} failed.`
+    : `Imported ${saved} workout${saved !== 1 ? 's' : ''} successfully.`;
+  showImportStatus(msg, skipped ? 'error' : 'ok');
+}
+
+function showImportStatus(msg, type) {
+  const el = document.getElementById('import-status');
+  el.textContent = msg;
+  el.className = `import-status ${type}`;
+  el.style.display = '';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   s.unit = localStorage.getItem('wt-unit') || 'lbs';
@@ -501,6 +773,11 @@ async function init() {
   });
   ['btn-lbs', 'btn-lbs2'].forEach(id => document.getElementById(id)?.classList.toggle('active', s.unit === 'lbs'));
   ['btn-kg',  'btn-kg2' ].forEach(id => document.getElementById(id)?.classList.toggle('active', s.unit === 'kg'));
+
+  // Sync bell icon with persisted preference
+  document.getElementById('ring-icon-on').style.display  = ringEnabled ? '' : 'none';
+  document.getElementById('ring-icon-off').style.display = ringEnabled ? 'none' : '';
+  document.getElementById('ring-toggle-btn').classList.toggle('ring-off', !ringEnabled);
 
   if (!authToken) {
     showAuthScreen();
@@ -517,8 +794,11 @@ async function init() {
     if (chip) pickChip(chip.dataset.name);
   });
 
+  // Unregister all service workers — they interfere with API calls in development
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.unregister());
+    });
   }
 }
 

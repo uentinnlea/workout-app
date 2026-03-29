@@ -68,8 +68,9 @@ def register(body: AuthIn):
     )
     db.add(user)
     db.commit()
+    user_id = user.id  # read before closing session
     db.close()
-    return {"token": create_token(user.id)}
+    return {"token": create_token(user_id)}
 
 @app.post("/login")
 def login(body: AuthIn):

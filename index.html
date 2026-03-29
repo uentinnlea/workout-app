@@ -10,6 +10,7 @@
   <title>Workout Tracker</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -64,6 +65,7 @@
         <div id="rest-timer-box">
           <div id="rest-countdown">0:00</div>
           <button class="btn btn-ghost btn-sm" id="rest-cancel-btn" onclick="cancelRest()" style="display:none">Cancel</button>
+          <button class="btn btn-danger btn-sm ring-stop-btn" id="ring-stop-btn" onclick="stopRing()" style="display:none">Stop Ring</button>
         </div>
         <div id="rest-presets">
           <span style="font-size:12px;color:var(--text3)">Timer:</span>
@@ -72,6 +74,19 @@
           <button class="btn btn-ghost btn-sm" onclick="startCountdown(120)">120s</button>
           <span style="font-size:12px;color:var(--text3);margin-left:4px">|</span>
           <button class="btn btn-ghost btn-sm" id="rest-sw-btn" onclick="toggleStopwatch()">Stopwatch</button>
+          <button class="btn-icon ring-toggle" id="ring-toggle-btn" onclick="toggleRing()" title="Toggle ring when timer ends">
+            <!-- bell on -->
+            <svg id="ring-icon-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <!-- bell off -->
+            <svg id="ring-icon-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
         </div>
         <div id="exercises-list"></div>
         <button class="btn btn-surface btn-full" style="margin-top:4px" onclick="openExerciseModal()">
@@ -90,12 +105,51 @@
     <div class="pad">
       <div class="sec-header">
         <div class="sec-title">History</div>
-        <div class="unit-toggle">
-          <button class="unit-btn active" id="btn-lbs" onclick="setUnit('lbs')">lbs</button>
-          <button class="unit-btn" id="btn-kg" onclick="setUnit('kg')">kg</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('csv-input').click()">Import CSV</button>
+          <input id="csv-input" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(this)">
+          <div class="unit-toggle">
+            <button class="unit-btn active" id="btn-lbs" onclick="setUnit('lbs')">lbs</button>
+            <button class="unit-btn" id="btn-kg" onclick="setUnit('kg')">kg</button>
+          </div>
         </div>
       </div>
+      <div id="import-status" style="display:none" class="import-status"></div>
       <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- Progress Tab -->
+  <div class="tab-content" id="tab-progress" style="display:none">
+    <div class="pad">
+      <div class="sec-header">
+        <div class="sec-title">Progress</div>
+      </div>
+
+      <div id="progress-empty" class="empty-state" style="display:none;padding:40px 24px">
+        <div class="hero-icon">📈</div>
+        <h2>No data yet</h2>
+        <p>Complete a few workouts to see your progress charts.</p>
+      </div>
+
+      <div id="progress-charts">
+        <!-- Volume chart -->
+        <div class="chart-card">
+          <div class="chart-title">Total Volume per Workout</div>
+          <div class="chart-subtitle" id="vol-unit-label"></div>
+          <canvas id="chart-volume"></canvas>
+        </div>
+
+        <!-- Strength chart -->
+        <div class="chart-card">
+          <div class="chart-title">Strength Progress</div>
+          <select id="exercise-picker" class="exercise-select" onchange="renderStrengthChart()"></select>
+          <canvas id="chart-strength"></canvas>
+          <div id="strength-empty" style="display:none;text-align:center;color:var(--text3);font-size:13px;padding:16px 0">
+            Not enough sessions for this exercise.
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -115,6 +169,12 @@
         <polyline points="12 7 12 12 15 15"/>
       </svg>
       History
+    </button>
+    <button class="tab-btn" id="tbtn-progress" onclick="switchTab('progress')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      Progress
     </button>
   </div>
 

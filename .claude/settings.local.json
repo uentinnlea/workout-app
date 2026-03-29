@@ -5,7 +5,9 @@
       "Bash(ls -la /Users/leo/Desktop/project\\\\\\(github\\\\\\)/workout-app)",
       "Bash(head:*)",
       "Bash(find:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(tail:*)"
     ]
   }
 }
