@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1200" height="1200" fill="#0A0A0A"/>
+  <rect width="1200" height="1200" fill="#0f0f0f"/>
 
   <defs>
     <linearGradient id="gold" x1="280" y1="180" x2="940" y2="980" gradientUnits="userSpaceOnUse">
