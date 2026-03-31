@@ -1,6 +1,6 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'wt-data-v1';
-const API = 'http://localhost:8000';
+const API = 'https://workout-app-backend-zedj.onrender.com';
 
 const EXERCISES = [
   'Bench Press', 'Incline Bench Press', 'Decline Bench Press', 'Dumbbell Fly', 'Push-ups', 'Cable Fly',
