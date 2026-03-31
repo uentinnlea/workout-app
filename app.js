@@ -613,6 +613,16 @@ function showConfirm(msg, cb) {
   openModal('modal-confirm');
 }
 
+// ─── Timer Tabs ───────────────────────────────────────────────────────────────
+function switchTimerTab(tab) {
+  document.getElementById('ttab-timer').classList.toggle('active', tab === 'timer');
+  document.getElementById('ttab-stopwatch').classList.toggle('active', tab === 'stopwatch');
+  document.getElementById('ttab-content-timer').style.display = tab === 'timer' ? 'flex' : 'none';
+  document.getElementById('ttab-content-stopwatch').style.display = tab === 'stopwatch' ? 'flex' : 'none';
+  if (tab === 'timer') cancelRest();
+  if (tab === 'stopwatch') cancelRest();
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function showAuthScreen() {
   document.getElementById('auth-screen').style.display = '';

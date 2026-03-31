@@ -214,9 +214,33 @@ body {
 }
 
 /* ── Rest timer ── */
+.timer-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+.timer-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.timer-tab.active {
+  background: var(--surface);
+  color: var(--text);
+}
 #rest-presets {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
   padding: 8px 2px;
   margin-bottom: 12px;
