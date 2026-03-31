@@ -1,11 +1,68 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="none">
-  <rect x="32" y="32" width="448" height="448" rx="96" fill="#111827"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#0A0A0A"/>
 
-  <rect x="92" y="196" width="36" height="120" rx="12" fill="white"/>
-  <rect x="140" y="176" width="44" height="160" rx="16" fill="white"/>
+  <defs>
+    <linearGradient id="gold" x1="280" y1="180" x2="940" y2="980" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF3BF"/>
+      <stop offset="20%" stop-color="#F7D96B"/>
+      <stop offset="45%" stop-color="#D9A93A"/>
+      <stop offset="70%" stop-color="#F6D97A"/>
+      <stop offset="100%" stop-color="#9D6A12"/>
+    </linearGradient>
 
-  <rect x="184" y="236" width="144" height="40" rx="20" fill="white"/>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
 
-  <rect x="328" y="176" width="44" height="160" rx="16" fill="white"/>
-  <rect x="384" y="196" width="36" height="120" rx="12" fill="white"/>
+  <!-- emblem ring -->
+  <circle cx="600" cy="470" r="255" stroke="url(#gold)" stroke-width="18" opacity="0.9"/>
+  <path d="M780 287C844 334 885 409 885 494C885 538 874 580 853 617" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+  <path d="M350 617C328 579 316 536 316 490C316 405 357 331 421 286" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- lightning / spear hybrid -->
+  <path d="M674 220L575 455H663L540 748L675 522H588L674 220Z"
+        fill="url(#gold)" filter="url(#softGlow)"/>
+
+  <!-- helmet crest -->
+  <path d="M482 279C548 228 638 215 718 245C771 265 813 299 846 343"
+        stroke="url(#gold)" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- achilles abstract helmet -->
+  <path d="M460 389C460 305 527 248 612 248C682 248 737 285 765 343
+           C713 351 670 382 640 427C617 462 607 501 607 548
+           L518 548C481 510 460 454 460 389Z"
+        fill="none" stroke="url(#gold)" stroke-width="22" stroke-linejoin="round"/>
+
+  <!-- face opening / visor -->
+  <path d="M649 334C621 347 599 367 582 394C567 417 560 440 557 468"
+        stroke="url(#gold)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- cheek guard -->
+  <path d="M601 476C591 530 564 576 523 616"
+        stroke="url(#gold)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- shoulder / torso hint -->
+  <path d="M453 628C503 595 552 582 611 582C665 582 712 594 764 623"
+        stroke="url(#gold)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- heel mark: subtle symbolic slash at bottom right -->
+  <path d="M768 640L828 690" stroke="url(#gold)" stroke-width="12" stroke-linecap="round" opacity="0.85"/>
+  <path d="M748 668L808 718" stroke="url(#gold)" stroke-width="7" stroke-linecap="round" opacity="0.65"/>
+
+  <!-- name -->
+  <text x="600" y="930"
+        text-anchor="middle"
+        font-family="Times New Roman, Georgia, serif"
+        font-size="112"
+        letter-spacing="14"
+        fill="url(#gold)">ACHILLES</text>
+
+  <!-- tagline line -->
+  <path d="M340 978H860" stroke="url(#gold)" stroke-width="4" opacity="0.5"/>
 </svg>
