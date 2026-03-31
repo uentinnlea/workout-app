@@ -64,8 +64,23 @@
         <!-- Rest Timer / Stopwatch -->
         <div id="rest-timer-box">
           <div id="rest-countdown">0:00</div>
-          <button class="btn btn-ghost btn-sm" id="rest-cancel-btn" onclick="cancelRest()" style="display:none">Cancel</button>
-          <button class="btn btn-danger btn-sm ring-stop-btn" id="ring-stop-btn" onclick="stopRing()" style="display:none">Stop Ring</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="rest-cancel-btn" onclick="cancelRest()" style="display:none">Cancel</button>
+            <button class="btn btn-danger btn-sm ring-stop-btn" id="ring-stop-btn" onclick="stopRing()" style="display:none">Stop Ring</button>
+            <button class="btn-icon ring-toggle" id="ring-toggle-btn" onclick="toggleRing()" title="Toggle ring when timer ends">
+              <!-- bell on -->
+              <svg id="ring-icon-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <!-- bell off -->
+              <svg id="ring-icon-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div id="rest-presets">
           <span style="font-size:12px;color:var(--text3)">Timer:</span>
@@ -73,18 +88,16 @@
           <button class="btn btn-ghost btn-sm" onclick="startCountdown(90)">90s</button>
           <button class="btn btn-ghost btn-sm" onclick="startCountdown(120)">120s</button>
           <span style="font-size:12px;color:var(--text3);margin-left:4px">|</span>
-          <button class="btn btn-ghost btn-sm" id="rest-sw-btn" onclick="toggleStopwatch()">Stopwatch</button>
-          <button class="btn-icon ring-toggle" id="ring-toggle-btn" onclick="toggleRing()" title="Toggle ring when timer ends">
-            <!-- bell on -->
-            <svg id="ring-icon-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          <button class="btn-icon btn-ghost btn-sm" id="rest-sw-btn" onclick="toggleStopwatch()" title="Stopwatch" style="padding:4px 8px">
+            <!-- play icon (default) -->
+            <svg id="sw-icon-play" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <polyline points="12 7 12 12 15 15"/>
             </svg>
-            <!-- bell off -->
-            <svg id="ring-icon-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
+            <!-- pause icon -->
+            <svg id="sw-icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <rect x="6" y="4" width="4" height="16" rx="1"/>
+              <rect x="14" y="4" width="4" height="16" rx="1"/>
             </svg>
           </button>
         </div>

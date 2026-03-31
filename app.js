@@ -213,7 +213,8 @@ function toggleStopwatch() {
   if (restMode === 'stopwatch' && restInterval) {
     clearInterval(restInterval);
     restInterval = null;
-    document.getElementById('rest-sw-btn').textContent = 'Resume';
+    document.getElementById('sw-icon-play').style.display = '';
+    document.getElementById('sw-icon-pause').style.display = 'none';
   } else {
     if (restMode !== 'stopwatch') {
       cancelRest();
@@ -221,7 +222,8 @@ function toggleStopwatch() {
       restElapsed = 0;
     }
     showCancelBtn(true);
-    document.getElementById('rest-sw-btn').textContent = 'Pause';
+    document.getElementById('sw-icon-play').style.display = 'none';
+    document.getElementById('sw-icon-pause').style.display = '';
     restInterval = setInterval(() => {
       restElapsed++;
       updateRestDisplay();
@@ -237,8 +239,10 @@ function cancelRest() {
   restMode = null;
   showCancelBtn(false);
   stopRing();
-  const btn = document.getElementById('rest-sw-btn');
-  if (btn) btn.textContent = 'Stopwatch';
+  const playIcon = document.getElementById('sw-icon-play');
+  const pauseIcon = document.getElementById('sw-icon-pause');
+  if (playIcon) playIcon.style.display = '';
+  if (pauseIcon) pauseIcon.style.display = 'none';
   updateRestDisplay();
 }
 
