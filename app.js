@@ -793,6 +793,12 @@ async function init() {
   document.getElementById('ring-icon-off').style.display = ringEnabled ? 'none' : '';
   document.getElementById('ring-toggle-btn').classList.toggle('ring-off', !ringEnabled);
 
+  // Chip click
+  document.getElementById('chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (chip) pickChip(chip.dataset.name);
+  });
+
   if (!authToken) {
     showAuthScreen();
     return;
@@ -802,11 +808,6 @@ async function init() {
   renderHistory();
   renderWorkout();
 
-  // Chip click — same pattern as button.html's addEventListener
-  document.getElementById('chips').addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (chip) pickChip(chip.dataset.name);
-  });
 
   // Unregister all service workers — they interfere with API calls in development
   if ('serviceWorker' in navigator) {
