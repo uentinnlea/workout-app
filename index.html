@@ -62,6 +62,11 @@
           <button class="btn-finish" onclick="finishWorkout()">Finish</button>
         </div>
 
+        <div id="exercises-list"></div>
+        <button class="btn btn-surface btn-full" style="margin-top:4px" onclick="openExerciseModal()">
+          + Add New Exercise
+        </button>
+
         <!-- Rest Timer / Stopwatch -->
         <div id="rest-timer-box">
           <div id="rest-countdown">0:00</div>
@@ -108,10 +113,6 @@
             </button>
           </div>
         </div>
-        <div id="exercises-list"></div>
-        <button class="btn btn-surface btn-full" style="margin-top:4px" onclick="openExerciseModal()">
-          + Add New Exercise
-        </button>
         <div style="display:flex;justify-content:center;margin-top:10px">
           <button class="btn btn-danger-ghost btn-sm" onclick="cancelWorkout()">Cancel Workout</button>
         </div>
