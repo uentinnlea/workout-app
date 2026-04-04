@@ -13,6 +13,8 @@ const EXERCISES = [
   'Running', 'Cycling', 'Jump Rope', 'Rowing Machine', 'Stair Climber',
 ];
 
+let customExercises = JSON.parse(localStorage.getItem('wt-custom-exercises') || '[]');
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const s = {
   workout: null,
@@ -282,7 +284,8 @@ function onSearchInput(v) {
 
 function renderChips() {
   const q = chipFilter.toLowerCase();
-  const filtered = q ? EXERCISES.filter(e => e.toLowerCase().includes(q)) : EXERCISES;
+  const allExercises = [...customExercises, ...EXERCISES.filter(e => !customExercises.includes(e))];
+  const filtered = q ? allExercises.filter(e => e.toLowerCase().includes(q)) : allExercises;
   document.getElementById('chips').innerHTML = filtered.slice(0, 24).map(ex =>
     `<button class="chip${selectedEx === ex ? ' sel' : ''}" data-name="${esc(ex)}">${esc(ex)}</button>`
   ).join('');
@@ -298,6 +301,10 @@ function pickChip(name) {
 function confirmAddExercise() {
   const name = selectedEx.trim();
   if (!name) { document.getElementById('ex-search').focus(); return; }
+  if (!EXERCISES.includes(name) && !customExercises.includes(name)) {
+    customExercises.unshift(name);
+    localStorage.setItem('wt-custom-exercises', JSON.stringify(customExercises));
+  }
   s.workout.exercises.push({ id: uid(), name, sets: [{ reps: '', weight: '' }] });
   closeModal('modal-exercise');
   renderExercises();
