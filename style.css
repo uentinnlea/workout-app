@@ -555,6 +555,21 @@ body {
 .fade-up { animation: fade-up 0.2s ease-out; }
 
 /* ── Ring toggle ── */
+.sw-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  width: 120px;
+  height: 56px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.sw-btn:active { opacity: 0.75; }
+
 .ring-toggle { color: var(--text2); margin-left: 2px; }
 .ring-toggle.ring-off { color: var(--text3); }
 
