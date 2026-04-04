@@ -284,9 +284,9 @@ function onSearchInput(v) {
 
 function renderChips() {
   const q = chipFilter.toLowerCase();
-  const allExercises = [...customExercises, ...EXERCISES.filter(e => !customExercises.includes(e))];
+  const allExercises = [...customExercises, ...EXERCISES.filter(e => !customExercises.includes(e))].sort((a, b) => a.localeCompare(b));
   const filtered = q ? allExercises.filter(e => e.toLowerCase().includes(q)) : allExercises;
-  document.getElementById('chips').innerHTML = filtered.slice(0, 24).map(ex =>
+  document.getElementById('chips').innerHTML = filtered.slice(0, 50).map(ex =>
     `<button class="chip${selectedEx === ex ? ' sel' : ''}" data-name="${esc(ex)}">${esc(ex)}</button>`
   ).join('');
 }
