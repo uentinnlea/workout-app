@@ -368,7 +368,7 @@ function renderExercises() {
         </button>
       </div>
       <div class="sets-thead">
-        <div>Set</div><div>Reps</div><div>Weight (${s.unit})</div><div></div>
+        <div>Set</div><div>Reps</div><div>Weight (${s.unit})</div><div>Note</div><div></div>
       </div>
       ${ex.sets.map((set, i) => `
         <div class="set-row">
@@ -379,6 +379,9 @@ function renderExercises() {
           <input class="set-input" type="number" inputmode="decimal" min="0" step="0.5"
                  value="${esc(set.weight)}" placeholder="—"
                  oninput="setVal('${ex.id}',${i},'weight',this.value)">
+          <input class="set-comment" type="text" placeholder="Note…"
+                 value="${esc(set.comment || '')}"
+                 oninput="setVal('${ex.id}',${i},'comment',this.value)">
           <button class="btn-icon" onclick="removeSet('${ex.id}',${i})"
                   ${ex.sets.length <= 1 ? 'disabled style="opacity:.25"' : ''}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -386,9 +389,6 @@ function renderExercises() {
             </svg>
           </button>
         </div>
-        <input class="set-comment" type="text" placeholder="Note…"
-               value="${esc(set.comment || '')}"
-               oninput="setVal('${ex.id}',${i},'comment',this.value)">
       `).join('')}
       <div class="add-set-wrap">
         <button class="btn btn-ghost btn-sm" onclick="addSet('${ex.id}')">+ Add Set</button>

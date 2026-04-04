@@ -314,7 +314,7 @@ body {
 /* ── Sets table ── */
 .sets-thead {
   display: grid;
-  grid-template-columns: 38px 1fr 1fr 38px;
+  grid-template-columns: 38px 1fr 1fr 2fr 38px;
   gap: 6px;
   padding: 7px 14px;
   font-size: 11px;
@@ -329,7 +329,7 @@ body {
 
 .set-row {
   display: grid;
-  grid-template-columns: 38px 1fr 1fr 38px;
+  grid-template-columns: 38px 1fr 1fr 2fr 38px;
   gap: 6px;
   align-items: center;
   padding: 7px 14px;
@@ -356,15 +356,14 @@ body {
 .set-input::placeholder { color: var(--text3); }
 
 .set-comment {
-  width: calc(100% - 28px);
-  margin: 4px 14px 6px;
+  width: 100%;
   background: var(--surface2);
   border: 1.5px solid transparent;
   border-radius: 9px;
   color: var(--text);
   font-size: 13px;
   padding: 6px 10px;
-  display: block;
+  min-width: 0;
 }
 .set-comment:focus { outline: none; border-color: var(--accent); background: var(--surface3); }
 .set-comment::placeholder { color: var(--text3); }
