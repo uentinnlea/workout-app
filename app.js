@@ -386,6 +386,9 @@ function renderExercises() {
             </svg>
           </button>
         </div>
+        <input class="set-comment" type="text" placeholder="Note…"
+               value="${esc(set.comment || '')}"
+               oninput="setVal('${ex.id}',${i},'comment',this.value)">
       `).join('')}
       <div class="add-set-wrap">
         <button class="btn btn-ghost btn-sm" onclick="addSet('${ex.id}')">+ Add Set</button>

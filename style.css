@@ -354,6 +354,20 @@ body {
 .set-input:focus { outline: none; border-color: var(--accent); background: var(--surface3); }
 .set-input::placeholder { color: var(--text3); }
 
+.set-comment {
+  width: calc(100% - 28px);
+  margin: 4px 14px 6px;
+  background: var(--surface2);
+  border: 1.5px solid transparent;
+  border-radius: 9px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 6px 10px;
+  display: block;
+}
+.set-comment:focus { outline: none; border-color: var(--accent); background: var(--surface3); }
+.set-comment::placeholder { color: var(--text3); }
+
 .add-set-wrap { padding: 10px 14px; }
 
 /* ── Modal ── */
