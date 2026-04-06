@@ -666,6 +666,30 @@ body {
   height: 38px;
 }
 
+.fc-angle-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(108,142,255,0.12);
+  border-bottom: 1px solid rgba(108,142,255,0.2);
+  flex-shrink: 0;
+}
+
+.fc-hint-view {
+  color: #6c8eff;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fc-hint-tip {
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .fc-camera {
   position: relative;
   flex: 1;

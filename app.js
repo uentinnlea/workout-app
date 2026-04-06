@@ -848,6 +848,7 @@ function closeFormCheck() {
 async function startFormCheck() {
   formCheckActive = true;
   formExercise = document.getElementById('form-ex-select').value;
+  updateAngleHint(formExercise);
   const videoEl  = document.getElementById('form-video');
   const noPoseEl = document.getElementById('fc-no-pose');
 
@@ -917,8 +918,28 @@ function stopFormCheck() {
   if (videoEl) videoEl.srcObject = null;
 }
 
+const FORM_ANGLE_HINTS = {
+  'Squat':           { icon: '↔', view: 'Side view', tip: 'Place phone at hip height, 6–8 ft away. Your full body (head to feet) must be visible.' },
+  'Deadlift':        { icon: '↔', view: 'Side view', tip: 'Place phone at hip height, 6–8 ft away. Face to the side — full body visible.' },
+  'Bench Press':     { icon: '↔', view: 'Side view', tip: 'Place phone at bench height, perpendicular to your body. Ask someone to hold it, or use a tripod.' },
+  'Overhead Press':  { icon: '↕', view: 'Front or side view', tip: 'Place phone at chest height, 5–6 ft away. Full body visible from head to feet.' },
+  'Bicep Curl':      { icon: '⬆', view: 'Front view', tip: 'Place phone at chest height facing you. Upper body (shoulder to wrist) must be visible.' },
+  'Push-ups':        { icon: '↔', view: 'Side view', tip: 'Place phone on the floor or low surface, 4–6 ft to your side. Full body visible.' },
+};
+
 function onFormExChange(val) {
   formExercise = val;
+  updateAngleHint(val);
+}
+
+function updateAngleHint(ex) {
+  const el   = document.getElementById('fc-angle-hint');
+  const hint = FORM_ANGLE_HINTS[ex];
+  if (!el || !hint) return;
+  el.innerHTML = `
+    <span class="fc-hint-view">${hint.icon} ${hint.view}</span>
+    <span class="fc-hint-tip">${hint.tip}</span>
+  `;
 }
 
 // ── Angle between three landmarks (degrees at vertex b) ──
