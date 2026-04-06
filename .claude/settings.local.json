@@ -7,7 +7,16 @@
       "Bash(find:*)",
       "Bash(pip install:*)",
       "Bash(curl:*)",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(psql:*)",
+      "Bash(brew install:*)",
+      "Bash(/opt/homebrew/opt/libpq/bin/psql \"postgresql://workout_db_2x3o_user:G57msrTQXwk4AzISyc1MfLK0PM9Rp44u@dpg-d76ht8vfte5s73ekao60-a/workout_db_2x3o\" -c \"\\\\dt\")",
+      "Bash(/opt/homebrew/opt/libpq/bin/psql \"postgresql://workout_db_2x3o_user:G57msrTQXwk4AzISyc1MfLK0PM9Rp44u@dpg-d76ht8vfte5s73ekao60-a.ohio-postgres.render.com/workout_db_2x3o\" -c \"\\\\dt\")",
+      "Bash(/opt/homebrew/opt/libpq/bin/psql \"postgresql://workout_db_2x3o_user:G57msrTQXwk4AzISyc1MfLK0PM9Rp44u@dpg-d76ht8vfte5s73ekao60-a.ohio-postgres.render.com/workout_db_2x3o\" -c \"SELECT id, email FROM users;\")",
+      "Bash(/opt/homebrew/opt/libpq/bin/psql \"postgresql://workout_db_2x3o_user:G57msrTQXwk4AzISyc1MfLK0PM9Rp44u@dpg-d76ht8vfte5s73ekao60-a.ohio-postgres.render.com/workout_db_2x3o\" -c \"SELECT * FROM users; SELECT id, user_id, start_time, duration FROM workouts;\")"
     ]
   }
 }

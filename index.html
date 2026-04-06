@@ -11,6 +11,8 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -59,7 +61,15 @@
             <button class="unit-btn" id="btn-lbs2" onclick="setUnit('lbs')">lbs</button>
             <button class="unit-btn" id="btn-kg2" onclick="setUnit('kg')">kg</button>
           </div>
-          <button class="btn-finish" onclick="finishWorkout()">Finish</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn-icon form-check-open-btn" onclick="openFormCheck()" title="Form Check">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <button class="btn-finish" onclick="finishWorkout()">Finish</button>
+          </div>
         </div>
 
         <div id="exercises-list"></div>
@@ -239,6 +249,33 @@
       <button class="btn btn-danger btn-full" id="confirm-yes">Confirm</button>
       <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="closeModal('modal-confirm')">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Form Check Modal (full screen) -->
+<div class="modal-fullscreen" id="modal-form-check">
+  <div class="fc-header">
+    <select id="form-ex-select" class="fc-ex-select" onchange="onFormExChange(this.value)">
+      <option>Squat</option>
+      <option>Deadlift</option>
+      <option>Bench Press</option>
+      <option>Overhead Press</option>
+      <option>Bicep Curl</option>
+      <option>Push-ups</option>
+    </select>
+    <button class="btn-icon fc-close-btn" onclick="closeFormCheck()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="fc-camera">
+    <video id="form-video" playsinline autoplay muted></video>
+    <canvas id="form-canvas"></canvas>
+    <div class="fc-no-pose" id="fc-no-pose">Loading pose model…</div>
+  </div>
+  <div class="fc-feedback" id="form-feedback">
+    <div class="form-tip">Point camera at your full body</div>
   </div>
 </div>
 

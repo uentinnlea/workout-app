@@ -828,3 +828,272 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ─── Form Check ───────────────────────────────────────────────────────────────
+let poseDetector    = null;
+let formCamStream   = null;
+let formCheckActive = false;
+let formExercise    = 'Squat';
+
+function openFormCheck() {
+  document.getElementById('modal-form-check').classList.add('open');
+  startFormCheck();
+}
+
+function closeFormCheck() {
+  document.getElementById('modal-form-check').classList.remove('open');
+  stopFormCheck();
+}
+
+async function startFormCheck() {
+  formCheckActive = true;
+  formExercise = document.getElementById('form-ex-select').value;
+  const videoEl  = document.getElementById('form-video');
+  const noPoseEl = document.getElementById('fc-no-pose');
+
+  noPoseEl.textContent = 'Starting camera…';
+  noPoseEl.style.display = '';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    videoEl.srcObject = stream;
+    formCamStream = stream;
+    await videoEl.play();
+  } catch {
+    renderFormFeedback([], ['Camera access denied — allow camera in browser settings']);
+    noPoseEl.textContent = 'Camera unavailable';
+    return;
+  }
+
+  noPoseEl.textContent = 'Loading pose model…';
+
+  const pose = new Pose({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+  });
+  pose.setOptions({
+    modelComplexity: 1,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  });
+
+  const canvasEl = document.getElementById('form-canvas');
+  let modelReady = false;
+
+  pose.onResults(results => {
+    if (!modelReady) {
+      modelReady = true;
+      noPoseEl.style.display = 'none';
+    }
+    onPoseResults(results, canvasEl);
+  });
+
+  poseDetector = pose;
+
+  async function detect() {
+    if (!formCheckActive || !poseDetector) return;
+    if (videoEl.readyState >= 2) {
+      await poseDetector.send({ image: videoEl });
+    }
+    requestAnimationFrame(detect);
+  }
+  detect();
+}
+
+function stopFormCheck() {
+  formCheckActive = false;
+  if (formCamStream) {
+    formCamStream.getTracks().forEach(t => t.stop());
+    formCamStream = null;
+  }
+  if (poseDetector) {
+    poseDetector.close();
+    poseDetector = null;
+  }
+  const videoEl = document.getElementById('form-video');
+  if (videoEl) videoEl.srcObject = null;
+}
+
+function onFormExChange(val) {
+  formExercise = val;
+}
+
+// ── Angle between three landmarks (degrees at vertex b) ──
+function calcAngle(a, b, c) {
+  const ab = { x: a.x - b.x, y: a.y - b.y };
+  const cb = { x: c.x - b.x, y: c.y - b.y };
+  const dot = ab.x * cb.x + ab.y * cb.y;
+  const mag = Math.sqrt(ab.x ** 2 + ab.y ** 2) * Math.sqrt(cb.x ** 2 + cb.y ** 2);
+  if (mag < 0.0001) return 0;
+  return Math.acos(Math.min(1, Math.max(-1, dot / mag))) * (180 / Math.PI);
+}
+
+// Pick left or right side based on which has better landmark visibility
+function betterSide(lm, leftIdx, rightIdx) {
+  return (lm[leftIdx]?.visibility || 0) >= (lm[rightIdx]?.visibility || 0) ? 'left' : 'right';
+}
+
+function analyzeForm(lm) {
+  const issues = [];
+  const tips   = [];
+  const ex     = formExercise;
+
+  // Reject if key landmarks aren't visible enough
+  const keyIdxs = { Squat: [23,25,27], Deadlift: [11,23,25], 'Bench Press': [11,13,15],
+    'Overhead Press': [11,13,15], 'Bicep Curl': [11,13,15], 'Push-ups': [11,23,27] }[ex] || [11,23];
+  const avgVis = keyIdxs.reduce((s, i) => s + (lm[i]?.visibility || 0), 0) / keyIdxs.length;
+  if (avgVis < 0.4) {
+    return { issues: [], tips: ['Step back so your full body is visible'] };
+  }
+
+  if (ex === 'Squat') {
+    const s        = betterSide(lm, 25, 26);
+    const hip      = lm[s === 'left' ? 23 : 24];
+    const knee     = lm[s === 'left' ? 25 : 26];
+    const ankle    = lm[s === 'left' ? 27 : 28];
+    const shoulder = lm[s === 'left' ? 11 : 12];
+
+    const kneeAngle = calcAngle(hip, knee, ankle);
+    if (kneeAngle > 130) {
+      tips.push('Standing — squat down for analysis');
+    } else if (kneeAngle > 100) {
+      issues.push(`Squat deeper — knee at ${Math.round(kneeAngle)}° (target ≤ 90°)`);
+    } else {
+      tips.push(`Good depth — knee at ${Math.round(kneeAngle)}°`);
+    }
+
+    // Forward lean: angle of torso from vertical
+    const lean = Math.abs(Math.atan2(shoulder.x - hip.x, hip.y - shoulder.y) * 180 / Math.PI);
+    if (lean > 50) issues.push('Torso leaning too far forward — chest up');
+
+    // Knee cave: knee drifting inward past ankle
+    const cave = s === 'left' ? ankle.x - knee.x : knee.x - ankle.x;
+    if (cave > 0.04) issues.push(`${s === 'left' ? 'Left' : 'Right'} knee caving in — push knees out`);
+  }
+
+  else if (ex === 'Deadlift') {
+    const s        = betterSide(lm, 25, 26);
+    const shoulder = lm[s === 'left' ? 11 : 12];
+    const hip      = lm[s === 'left' ? 23 : 24];
+    const knee     = lm[s === 'left' ? 25 : 26];
+
+    const backAngle = calcAngle(shoulder, hip, knee);
+    if (backAngle < 130) {
+      issues.push(`Back rounding — keep spine neutral (${Math.round(backAngle)}°)`);
+    } else {
+      tips.push('Back position looks neutral');
+    }
+
+    const neckAngle = calcAngle(lm[0], shoulder, hip);
+    if (neckAngle < 130) issues.push('Head dropping — keep neck in neutral position');
+  }
+
+  else if (ex === 'Bench Press') {
+    const s        = betterSide(lm, 13, 14);
+    const shoulder = lm[s === 'left' ? 11 : 12];
+    const elbow    = lm[s === 'left' ? 13 : 14];
+    const wrist    = lm[s === 'left' ? 15 : 16];
+
+    const elbowAngle = calcAngle(shoulder, elbow, wrist);
+    if (elbowAngle > 100) {
+      issues.push('Elbows too flared — tuck them to 45–75°');
+    } else if (elbowAngle < 70) {
+      tips.push(`Good bar position — elbow at ${Math.round(elbowAngle)}°`);
+    } else {
+      tips.push('Lowering — keep elbows at 45–75°');
+    }
+
+    if (wrist.y > elbow.y + 0.05) issues.push('Wrists bending back — keep them straight over the bar');
+    tips.push('Tip: side-view camera gives best bench analysis');
+  }
+
+  else if (ex === 'Overhead Press') {
+    const s        = betterSide(lm, 13, 14);
+    const shoulder = lm[s === 'left' ? 11 : 12];
+    const elbow    = lm[s === 'left' ? 13 : 14];
+    const wrist    = lm[s === 'left' ? 15 : 16];
+    const hip      = lm[s === 'left' ? 23 : 24];
+    const knee     = lm[s === 'left' ? 25 : 26];
+
+    const elbowAngle = calcAngle(shoulder, elbow, wrist);
+    if (elbowAngle > 160) {
+      tips.push('Arms fully extended — great lockout!');
+    } else if (elbowAngle < 100) {
+      tips.push(`Pressing — extend fully at top (${Math.round(elbowAngle)}°)`);
+    } else {
+      issues.push(`Arms not locked out — ${Math.round(elbowAngle)}° (target: 160°+)`);
+    }
+
+    const backAngle = calcAngle(shoulder, hip, knee);
+    if (backAngle < 150) issues.push('Lower back arching — brace your core');
+  }
+
+  else if (ex === 'Bicep Curl') {
+    const s        = betterSide(lm, 13, 14);
+    const shoulder = lm[s === 'left' ? 11 : 12];
+    const elbow    = lm[s === 'left' ? 13 : 14];
+    const wrist    = lm[s === 'left' ? 15 : 16];
+
+    const curlAngle = calcAngle(shoulder, elbow, wrist);
+    if (curlAngle < 50)       tips.push('Fully curled — good top position!');
+    else if (curlAngle > 160) tips.push('Fully extended — good starting position');
+    else                      tips.push(`Curling — ${Math.round(curlAngle)}°`);
+
+    const drift = Math.abs(elbow.x - shoulder.x);
+    if (drift > 0.12) issues.push('Elbow drifting — keep it tucked to your side');
+    else              tips.push('Good elbow position');
+  }
+
+  else if (ex === 'Push-ups') {
+    const s        = betterSide(lm, 25, 26);
+    const shoulder = lm[s === 'left' ? 11 : 12];
+    const elbow    = lm[s === 'left' ? 13 : 14];
+    const wrist    = lm[s === 'left' ? 15 : 16];
+    const hip      = lm[s === 'left' ? 23 : 24];
+    const ankle    = lm[s === 'left' ? 27 : 28];
+
+    const midY   = (shoulder.y + ankle.y) / 2;
+    const hipDev = hip.y - midY;
+    if (hipDev > 0.05)       issues.push('Hips sagging — keep body in a straight line');
+    else if (hipDev < -0.05) issues.push('Hips too high (piked) — lower them');
+    else                     tips.push('Body alignment looks straight');
+
+    const elbowAngle = calcAngle(shoulder, elbow, wrist);
+    if (elbowAngle > 140)     issues.push('Go lower — chest should nearly touch ground');
+    else if (elbowAngle < 70) tips.push('Good depth!');
+  }
+
+  if (issues.length === 0 && tips.length === 0) tips.push('Looking good — keep it up!');
+  return { issues, tips };
+}
+
+function onPoseResults(results, canvas) {
+  const ctx = canvas.getContext('2d');
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.poseLandmarks) {
+    renderFormFeedback([], ['No pose detected — position your full body in frame']);
+    return;
+  }
+
+  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,
+    { color: 'rgba(0,255,200,0.75)', lineWidth: 3 });
+  drawLandmarks(ctx, results.poseLandmarks,
+    { color: '#ff4444', lineWidth: 2, radius: 4 });
+
+  const { issues, tips } = analyzeForm(results.poseLandmarks);
+  renderFormFeedback(issues, tips);
+}
+
+function renderFormFeedback(issues, tips) {
+  const el = document.getElementById('form-feedback');
+  if (!el) return;
+  let html = issues.map(m => `<div class="form-issue">⚠ ${esc(m)}</div>`).join('');
+  html    += tips.map(m   => `<div class="form-tip">✓ ${esc(m)}</div>`).join('');
+  el.innerHTML = html || '<div class="form-tip">Analyzing…</div>';
+}
