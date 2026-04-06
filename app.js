@@ -353,12 +353,22 @@ function renderWorkout() {
   }
 }
 
+const FORM_CHECK_EXERCISES = new Set(['Squat','Deadlift','Bench Press','Overhead Press','Bicep Curl','Push-ups']);
+
 function renderExercises() {
   if (!s.workout) return;
   document.getElementById('exercises-list').innerHTML = s.workout.exercises.map(ex => `
     <div class="exercise-card fade-up" data-id="${ex.id}">
       <div class="ex-header">
         <div class="ex-name">${esc(ex.name)}</div>
+        <div style="display:flex;align-items:center;gap:2px">
+        ${FORM_CHECK_EXERCISES.has(ex.name) ? `
+          <button class="btn-icon ex-form-check-btn" onclick="openFormCheck('${esc(ex.name)}')" title="Check form">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>` : ''}
         <button class="btn-icon" onclick="removeExercise('${ex.id}')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <polyline points="3 6 5 6 21 6"/>
@@ -366,6 +376,7 @@ function renderExercises() {
             <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
           </svg>
         </button>
+        </div>
       </div>
       <div class="sets-thead">
         <div>Set</div><div>Reps</div><div>Weight (${s.unit})</div><div>Note</div><div></div>
@@ -835,7 +846,9 @@ let formCamStream   = null;
 let formCheckActive = false;
 let formExercise    = 'Squat';
 
-function openFormCheck() {
+function openFormCheck(exName) {
+  const select = document.getElementById('form-ex-select');
+  if (exName && select) { select.value = exName; formExercise = exName; }
   document.getElementById('modal-form-check').classList.add('open');
   startFormCheck();
 }
@@ -1088,7 +1101,17 @@ function analyzeForm(lm) {
   }
 
   if (issues.length === 0 && tips.length === 0) tips.push('Looking good — keep it up!');
-  return { issues, tips };
+
+  // 'good' only when actively in a correct position (not just standing/waiting)
+  const GOOD_PREFIXES = ['Good ', 'Arms fully', 'Fully curled', 'Back position', 'Body alignment', 'Great lockout'];
+  let status = 'neutral';
+  if (issues.length > 0) {
+    status = 'bad';
+  } else if (tips.length > 0 && tips.every(t => GOOD_PREFIXES.some(p => t.startsWith(p)))) {
+    status = 'good';
+  }
+
+  return { issues, tips, status };
 }
 
 function onPoseResults(results, canvas) {
@@ -1098,7 +1121,7 @@ function onPoseResults(results, canvas) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (!results.poseLandmarks) {
-    renderFormFeedback([], ['No pose detected — position your full body in frame']);
+    renderFormFeedback([], ['No pose detected — position your full body in frame'], 'neutral');
     return;
   }
 
@@ -1107,14 +1130,28 @@ function onPoseResults(results, canvas) {
   drawLandmarks(ctx, results.poseLandmarks,
     { color: '#ff4444', lineWidth: 2, radius: 4 });
 
-  const { issues, tips } = analyzeForm(results.poseLandmarks);
-  renderFormFeedback(issues, tips);
+  const { issues, tips, status } = analyzeForm(results.poseLandmarks);
+  renderFormFeedback(issues, tips, status);
 }
 
-function renderFormFeedback(issues, tips) {
+function renderFormFeedback(issues, tips, status = 'neutral') {
   const el = document.getElementById('form-feedback');
-  if (!el) return;
-  let html = issues.map(m => `<div class="form-issue">⚠ ${esc(m)}</div>`).join('');
-  html    += tips.map(m   => `<div class="form-tip">✓ ${esc(m)}</div>`).join('');
-  el.innerHTML = html || '<div class="form-tip">Analyzing…</div>';
+  if (el) {
+    let html = issues.map(m => `<div class="form-issue">⚠ ${esc(m)}</div>`).join('');
+    html    += tips.map(m   => `<div class="form-tip">✓ ${esc(m)}</div>`).join('');
+    el.innerHTML = html || '<div class="form-tip">Analyzing…</div>';
+  }
+
+  const badge = document.getElementById('fc-status');
+  if (!badge) return;
+  if (status === 'good') {
+    badge.className = 'fc-status fc-status-good';
+    badge.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  } else if (status === 'bad') {
+    badge.className = 'fc-status fc-status-bad';
+    badge.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  } else {
+    badge.className = 'fc-status';
+    badge.innerHTML = '';
+  }
 }
