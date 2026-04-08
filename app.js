@@ -102,18 +102,66 @@ async function retryLoadHistory() {
 }
 
 async function postWorkout(workout) {
-  const res = await fetch(`${API}/workouts`, {
-    method: 'POST',
-    headers: apiHeaders(),
-    body: JSON.stringify({
-      id:         workout.id,
-      start_time: workout.startTime,
-      end_time:   workout.endTime,
-      duration:   workout.duration,
-      exercises:  workout.exercises,
-    }),
+  const body = JSON.stringify({
+    id:         workout.id,
+    start_time: workout.startTime,
+    end_time:   workout.endTime,
+    duration:   workout.duration,
+    exercises:  workout.exercises,
   });
-  if (!res.ok) throw new Error('Save failed');
+
+  const MAX_ATTEMPTS = 4;
+  const RETRY_DELAY  = 15000;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      if (attempt > 1) showLoading(`Waking up server… (attempt ${attempt}/${MAX_ATTEMPTS})`);
+      const res = await fetch(`${API}/workouts`, {
+        method: 'POST', headers: apiHeaders(), body,
+      });
+      if (!res.ok) throw new Error('Save failed');
+      removePendingWorkout(workout.id);
+      return;
+    } catch {
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise(r => setTimeout(r, RETRY_DELAY));
+      } else {
+        savePendingWorkout(workout);
+        throw new Error('Could not reach server — workout saved locally');
+      }
+    }
+  }
+}
+
+function savePendingWorkout(workout) {
+  const pending = JSON.parse(localStorage.getItem('wt-pending') || '[]');
+  if (!pending.find(w => w.id === workout.id)) {
+    pending.push(workout);
+    localStorage.setItem('wt-pending', JSON.stringify(pending));
+  }
+}
+
+function removePendingWorkout(id) {
+  const pending = JSON.parse(localStorage.getItem('wt-pending') || '[]');
+  localStorage.setItem('wt-pending', JSON.stringify(pending.filter(w => w.id !== id)));
+}
+
+async function syncPendingWorkouts() {
+  const pending = JSON.parse(localStorage.getItem('wt-pending') || '[]');
+  if (!pending.length) return;
+  for (const workout of pending) {
+    try {
+      const res = await fetch(`${API}/workouts`, {
+        method: 'POST', headers: apiHeaders(),
+        body: JSON.stringify({
+          id: workout.id, start_time: workout.startTime,
+          end_time: workout.endTime, duration: workout.duration,
+          exercises: workout.exercises,
+        }),
+      });
+      if (res.ok) removePendingWorkout(workout.id);
+    } catch { break; }
+  }
 }
 
 function saveUnit() {
@@ -187,12 +235,16 @@ function finishWorkout() {
     const dur = Math.floor((endTime - s.workout.startTime) / 1000);
     const finished = { ...s.workout, endTime, duration: dur };
     showLoading('Saving workout…');
+    let saveError = false;
     try {
       await postWorkout(finished);
     } catch {
-      console.error('Failed to save workout to backend.');
+      saveError = true;
     }
     hideLoading();
+    if (saveError) {
+      showImportStatus('No connection — workout saved locally and will sync next time you open the app.', 'error');
+    }
     s.history.unshift(finished);
     cancelRest();
     s.workout = null;
@@ -882,6 +934,7 @@ async function init() {
   }
 
   await loadHistory();
+  await syncPendingWorkouts();
   renderHistory();
   renderWorkout();
 
