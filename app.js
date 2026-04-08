@@ -46,15 +46,59 @@ function apiHeaders() {
 }
 
 async function loadHistory() {
-  try {
-    const res = await fetch(`${API}/workouts`, { headers: apiHeaders() });
-    if (res.status === 401) { logout(); return; }
-    const data = await res.json();
-    s.history = data.map(normalizeWorkout);
-  } catch {
-    console.error('Backend unreachable — history unavailable.');
-    s.history = [];
+  const MAX_ATTEMPTS = 4;
+  const RETRY_DELAY  = 15000; // 15s between retries (cold start can take ~50s)
+
+  showBackendStatus('connecting');
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${API}/workouts`, { headers: apiHeaders() });
+      if (res.status === 401) { logout(); hideBackendStatus(); return; }
+      const data = await res.json();
+      s.history = data.map(normalizeWorkout);
+      hideBackendStatus();
+      return;
+    } catch {
+      if (attempt < MAX_ATTEMPTS) {
+        showBackendStatus('waking', attempt, MAX_ATTEMPTS);
+        await new Promise(r => setTimeout(r, RETRY_DELAY));
+      } else {
+        showBackendStatus('failed');
+        s.history = [];
+      }
+    }
   }
+}
+
+function showBackendStatus(state, attempt, max) {
+  let el = document.getElementById('backend-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'backend-status';
+    document.getElementById('history-list')?.before(el);
+  }
+  if (state === 'connecting') {
+    el.className = 'backend-status connecting';
+    el.textContent = 'Connecting to server…';
+  } else if (state === 'waking') {
+    el.className = 'backend-status waking';
+    el.textContent = `Server is waking up (attempt ${attempt}/${max}) — this can take up to 50s…`;
+  } else if (state === 'failed') {
+    el.className = 'backend-status failed';
+    el.innerHTML = 'Could not reach server. <button onclick="retryLoadHistory()" class="btn-retry">Retry</button>';
+  }
+  el.style.display = '';
+}
+
+function hideBackendStatus() {
+  const el = document.getElementById('backend-status');
+  if (el) el.style.display = 'none';
+}
+
+async function retryLoadHistory() {
+  await loadHistory();
+  renderHistory();
 }
 
 async function postWorkout(workout) {
