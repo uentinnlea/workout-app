@@ -170,17 +170,29 @@ function cancelWorkout() {
   });
 }
 
+function showLoading(msg = 'Saving workout…') {
+  const el = document.getElementById('loading-overlay');
+  el.querySelector('.loading-text').textContent = msg;
+  el.classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('show');
+}
+
 function finishWorkout() {
   if (!s.workout) return;
   const proceed = async () => {
     const endTime = Date.now();
     const dur = Math.floor((endTime - s.workout.startTime) / 1000);
     const finished = { ...s.workout, endTime, duration: dur };
+    showLoading('Saving workout…');
     try {
       await postWorkout(finished);
     } catch {
       console.error('Failed to save workout to backend.');
     }
+    hideLoading();
     s.history.unshift(finished);
     cancelRest();
     s.workout = null;
