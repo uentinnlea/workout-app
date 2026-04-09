@@ -101,7 +101,23 @@ async function retryLoadHistory() {
   renderHistory();
 }
 
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
+}
+
 async function postWorkout(workout) {
+  // Save locally first — protects against browser close during the upload
+  savePendingWorkout(workout);
+
   const body = JSON.stringify({
     id:         workout.id,
     start_time: workout.startTime,
@@ -110,23 +126,24 @@ async function postWorkout(workout) {
     exercises:  workout.exercises,
   });
 
-  const MAX_ATTEMPTS = 4;
-  const RETRY_DELAY  = 15000;
+  const MAX_ATTEMPTS = 5;
+  const RETRY_DELAY  = 12000;
+  const FETCH_TIMEOUT = 20000;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       if (attempt > 1) showLoading(`Waking up server… (attempt ${attempt}/${MAX_ATTEMPTS})`);
-      const res = await fetch(`${API}/workouts`, {
+      const res = await fetchWithTimeout(`${API}/workouts`, {
         method: 'POST', headers: apiHeaders(), body,
-      });
-      if (!res.ok) throw new Error('Save failed');
+      }, FETCH_TIMEOUT);
+      if (!res.ok) throw new Error(`Save failed (${res.status})`);
       removePendingWorkout(workout.id);
       return;
     } catch {
       if (attempt < MAX_ATTEMPTS) {
         await new Promise(r => setTimeout(r, RETRY_DELAY));
       } else {
-        savePendingWorkout(workout);
+        // Workout already in localStorage — will sync on next open
         throw new Error('Could not reach server — workout saved locally');
       }
     }
@@ -151,16 +168,17 @@ async function syncPendingWorkouts() {
   if (!pending.length) return;
   for (const workout of pending) {
     try {
-      const res = await fetch(`${API}/workouts`, {
+      const res = await fetchWithTimeout(`${API}/workouts`, {
         method: 'POST', headers: apiHeaders(),
         body: JSON.stringify({
           id: workout.id, start_time: workout.startTime,
           end_time: workout.endTime, duration: workout.duration,
           exercises: workout.exercises,
         }),
-      });
-      if (res.ok) removePendingWorkout(workout.id);
-    } catch { break; }
+      }, 20000);
+      // 200 = saved, 409 = already exists in DB — both mean we can clear from pending
+      if (res.ok || res.status === 409) removePendingWorkout(workout.id);
+    } catch { break; } // network error — server still down, stop for now
   }
 }
 

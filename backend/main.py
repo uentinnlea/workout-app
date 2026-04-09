@@ -101,6 +101,10 @@ def get_workouts(user_id: str = Depends(get_current_user)):
 @app.post("/workouts")
 def save_workout(w: WorkoutIn, user_id: str = Depends(get_current_user)):
     db = SessionLocal()
+    existing = db.query(Workout).filter(Workout.id == w.id, Workout.user_id == user_id).first()
+    if existing:
+        db.close()
+        raise HTTPException(status_code=409, detail="Already exists")
     workout = Workout(
         id=w.id, user_id=user_id,
         start_time=w.start_time, end_time=w.end_time,
