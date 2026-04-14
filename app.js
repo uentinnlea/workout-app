@@ -707,6 +707,26 @@ let chartVolume   = null;
 let chartStrength = null;
 let chartMuscle   = null;
 
+// Ordinary least-squares linear regression on [{x, y}] points.
+// Returns { slope, intercept, r2 } or null if degenerate.
+function linearRegression(pts) {
+  const n = pts.length;
+  if (n < 2) return null;
+  const sx  = pts.reduce((a, p) => a + p.x, 0);
+  const sy  = pts.reduce((a, p) => a + p.y, 0);
+  const sxy = pts.reduce((a, p) => a + p.x * p.y, 0);
+  const sx2 = pts.reduce((a, p) => a + p.x * p.x, 0);
+  const den = n * sx2 - sx * sx;
+  if (den === 0) return null;
+  const slope     = (n * sxy - sx * sy) / den;
+  const intercept = (sy - slope * sx) / n;
+  const meanY = sy / n;
+  const ssTot = pts.reduce((a, p) => a + (p.y - meanY) ** 2, 0);
+  const ssRes = pts.reduce((a, p) => a + (p.y - (slope * p.x + intercept)) ** 2, 0);
+  const r2 = ssTot === 0 ? 1 : Math.max(0, 1 - ssRes / ssTot);
+  return { slope, intercept, r2 };
+}
+
 // Maps every built-in exercise to a muscle group
 const MUSCLE_GROUP_MAP = {
   'Bench Press': 'Chest', 'Incline Bench Press': 'Chest', 'Decline Bench Press': 'Chest',
@@ -865,8 +885,9 @@ function populateExercisePicker(sorted) {
 }
 
 function renderStrengthChart() {
-  const name   = document.getElementById('exercise-picker').value;
-  const sorted = [...s.history].sort((a, b) => a.startTime - b.startTime);
+  const name       = document.getElementById('exercise-picker').value;
+  const sorted     = [...s.history].sort((a, b) => a.startTime - b.startTime);
+  const forecastEl = document.getElementById('strength-forecast');
 
   const points = [];
   sorted.forEach(w => {
@@ -878,6 +899,7 @@ function renderStrengthChart() {
       points.push({
         label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         value: s.unit === 'kg' ? Math.round(rm * 0.453592 * 10) / 10 : rm,
+        time:  w.startTime,
       });
     }
   });
@@ -886,36 +908,89 @@ function renderStrengthChart() {
   const canvas  = document.getElementById('chart-strength');
 
   if (points.length < 2) {
-    emptyEl.style.display = '';
-    canvas.style.display  = 'none';
+    emptyEl.style.display    = '';
+    canvas.style.display     = 'none';
+    forecastEl.style.display = 'none';
     if (chartStrength) { chartStrength.destroy(); chartStrength = null; }
     return;
   }
   emptyEl.style.display = 'none';
   canvas.style.display  = '';
 
+  // ── Linear regression + 4-week forecast ──────────────────────────────────
+  let extraDataset = null;
+  let chartLabels  = points.map(p => p.label);
+
+  if (points.length >= 3) {
+    const t0   = points[0].time;
+    const xys  = points.map(p => ({ x: (p.time - t0) / 86400000, y: p.value }));
+    const reg  = linearRegression(xys);
+
+    if (reg) {
+      const lastX     = xys[xys.length - 1].x;
+      const lastVal   = points[points.length - 1].value;
+      const futureX   = lastX + 28;
+      const futureVal = Math.round((reg.slope * futureX + reg.intercept) * 10) / 10;
+      const gain      = Math.round((futureVal - lastVal) * 10) / 10;
+
+      const futureDate  = new Date(points[points.length - 1].time + 28 * 86400000);
+      const futureLabel = futureDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      chartLabels = [...chartLabels, futureLabel];
+
+      // Forecast dataset: null for all but last historical + future point
+      const fData = [...new Array(points.length).fill(null), futureVal];
+      fData[points.length - 1] = lastVal; // connect from last known point
+
+      extraDataset = {
+        data: fData,
+        borderColor: 'rgba(255,107,53,0.75)',
+        borderDash: [6, 4],
+        backgroundColor: 'transparent',
+        pointRadius: fData.map((_, i) => i === fData.length - 1 ? 5 : 0),
+        pointBackgroundColor: fData.map((_, i) => i === fData.length - 1 ? '#FF6B35' : 'transparent'),
+        tension: 0,
+        fill: false,
+        spanGaps: false,
+      };
+
+      if (reg.slope > 0.01) {
+        forecastEl.textContent = `📈 +${gain} ${s.unit} predicted in 4 weeks → ${futureVal} ${s.unit}  ·  R² ${reg.r2.toFixed(2)}`;
+        forecastEl.className = 'strength-forecast forecast-up';
+      } else if (reg.slope < -0.01) {
+        forecastEl.textContent = `📉 Downward trend — consider a deload week.`;
+        forecastEl.className = 'strength-forecast forecast-down';
+      } else {
+        forecastEl.textContent = `⚠️ Plateau detected — try changing rep scheme or weight.`;
+        forecastEl.className = 'strength-forecast forecast-flat';
+      }
+      forecastEl.style.display = '';
+    }
+  } else {
+    forecastEl.style.display = 'none';
+  }
+
+  const datasets = [{
+    data:  points.map(p => p.value),
+    borderColor: '#4ecdc4',
+    backgroundColor: 'rgba(78,205,196,0.12)',
+    pointBackgroundColor: '#4ecdc4',
+    pointRadius: 4,
+    tension: 0.3,
+    fill: true,
+  }];
+  if (extraDataset) datasets.push(extraDataset);
+
   if (chartStrength) chartStrength.destroy();
   chartStrength = new Chart(canvas, {
     type: 'line',
-    data: {
-      labels: points.map(p => p.label),
-      datasets: [{
-        data:  points.map(p => p.value),
-        borderColor: '#4ecdc4',
-        backgroundColor: 'rgba(78,205,196,0.12)',
-        pointBackgroundColor: '#4ecdc4',
-        pointRadius: 4,
-        tension: 0.3,
-        fill: true,
-      }],
-    },
+    data: { labels: chartLabels, datasets },
     options: {
       ...chartDefaults(),
       plugins: {
         ...chartDefaults().plugins,
         tooltip: {
           callbacks: {
-            label: ctx => `${ctx.parsed.y} ${s.unit}`,
+            label: ctx => ctx.parsed.y != null ? `${ctx.parsed.y} ${s.unit}` : '',
           },
         },
       },
