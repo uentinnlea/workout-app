@@ -311,6 +311,16 @@ body {
 
 .ex-name { font-size: 17px; font-weight: 600; }
 
+.ex-suggest {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 3px;
+}
+.ex-suggest-target {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* ── Sets table ── */
 .sets-thead {
   display: grid;

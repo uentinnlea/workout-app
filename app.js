@@ -522,6 +522,37 @@ function setVal(exId, i, field, val) {
   if (ex) ex.sets[i][field] = val;
 }
 
+// ─── Progressive Overload ─────────────────────────────────────────────────────
+// Returns { last: "8 × 80 kg", suggest: "9 × 80 kg" } or null if no history
+function getOverloadSuggestion(exName) {
+  const prev = [...s.history]
+    .sort((a, b) => b.startTime - a.startTime)
+    .find(w => w.exercises.some(e => e.name === exName));
+  if (!prev) return null;
+
+  const lastEx = prev.exercises.find(e => e.name === exName);
+  const validSets = lastEx.sets.filter(set => parseFloat(set.weight) > 0 && parseInt(set.reps) > 0);
+  if (!validSets.length) return null;
+
+  // Pick the heaviest set as the reference
+  const best = validSets.reduce((top, set) =>
+    parseFloat(set.weight) > parseFloat(top.weight) ? set : top
+  );
+  const w = parseFloat(best.weight);
+  const r = parseInt(best.reps);
+  const dispW = toDisplayWeight(w);
+
+  const lastStr = `${r} × ${dispW} ${s.unit}`;
+  let suggestStr;
+  if (r < 10) {
+    suggestStr = `${r + 1} × ${dispW} ${s.unit}`;
+  } else {
+    const incr = s.unit === 'kg' ? 2.5 : 5;
+    suggestStr = `${r} × ${dispW + incr} ${s.unit}`;
+  }
+  return { last: lastStr, suggest: suggestStr };
+}
+
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderWorkout() {
   const idle   = document.getElementById('state-idle');
@@ -540,10 +571,15 @@ const FORM_CHECK_EXERCISES = new Set(['Squat','Deadlift','Bench Press','Overhead
 
 function renderExercises() {
   if (!s.workout) return;
-  document.getElementById('exercises-list').innerHTML = s.workout.exercises.map(ex => `
+  document.getElementById('exercises-list').innerHTML = s.workout.exercises.map(ex => {
+    const hint = getOverloadSuggestion(ex.name);
+    return `
     <div class="exercise-card fade-up" data-id="${ex.id}">
       <div class="ex-header">
-        <div class="ex-name">${esc(ex.name)}</div>
+        <div>
+          <div class="ex-name">${esc(ex.name)}</div>
+          ${hint ? `<div class="ex-suggest">Last: ${hint.last} &rarr; <span class="ex-suggest-target">${hint.suggest}</span></div>` : ''}
+        </div>
         <div style="display:flex;align-items:center;gap:2px">
         ${FORM_CHECK_EXERCISES.has(ex.name) ? `
           <button class="btn-icon ex-form-check-btn" onclick="openFormCheck('${esc(ex.name)}')" title="Check form">
@@ -588,7 +624,8 @@ function renderExercises() {
         <button class="btn btn-ghost btn-sm" onclick="addSet('${ex.id}')">+ Add Set</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderHistory() {
