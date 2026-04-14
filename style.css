@@ -526,6 +526,32 @@ body {
 .hist-sets { display: flex; flex-wrap: wrap; gap: 6px; }
 .hist-set-tag { background: var(--surface2); border-radius: 8px; padding: 4px 9px; font-size: 12px; color: var(--text2); }
 
+.pr-badge {
+  display: inline-block;
+  margin-left: 8px;
+  background: linear-gradient(135deg, #f5a623, #f7c948);
+  color: #1a1000;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  vertical-align: middle;
+}
+
+.pr-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+.pr-item-name { font-weight: 600; font-size: 15px; }
+.pr-item-val  { font-size: 13px; color: #f7c948; font-weight: 600; }
+
 /* ── Unit toggle ── */
 .unit-toggle { display: flex; background: var(--surface); border-radius: 10px; padding: 3px; }
 

@@ -217,6 +217,61 @@ function totalVol(workout) {
       st + (parseFloat(set.weight) || 0) * (parseInt(set.reps) || 0), 0), 0);
 }
 
+// ─── 1RM helpers ──────────────────────────────────────────────────────────────
+// Epley formula: weight × (1 + reps/30). Reliable for 1-10 reps.
+function estimatedOneRM(weight, reps) {
+  if (!weight || !reps || reps <= 0) return 0;
+  if (reps === 1) return weight;
+  if (reps > 10) return 0; // unreliable at high rep ranges
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
+// Best estimated 1RM across all sets of a single exercise
+function bestOneRM(exercise) {
+  let best = 0;
+  for (const set of exercise.sets) {
+    const e = estimatedOneRM(parseFloat(set.weight) || 0, parseInt(set.reps) || 0);
+    if (e > best) best = e;
+  }
+  return best;
+}
+
+// Returns { workoutId: { exerciseName: oneRM } } for every exercise that was a PR
+// at the time it was performed (compared to all earlier workouts).
+function computeHistoryPRs(history) {
+  const sorted = [...history].sort((a, b) => a.startTime - b.startTime);
+  const runningBest = {}; // exerciseName → best 1RM seen so far
+  const result = {};
+  for (const w of sorted) {
+    result[w.id] = {};
+    for (const ex of w.exercises) {
+      const rm = bestOneRM(ex);
+      if (rm > 0 && rm > (runningBest[ex.name] || 0)) {
+        result[w.id][ex.name] = rm;
+        runningBest[ex.name] = rm;
+      }
+    }
+  }
+  return result;
+}
+
+// Returns array of { name, oneRM } for exercises that set a new all-time record
+function detectPRs(finishedWorkout, previousHistory) {
+  const prs = [];
+  for (const ex of finishedWorkout.exercises) {
+    const current = bestOneRM(ex);
+    if (current <= 0) continue;
+    const historicalBest = previousHistory.reduce((best, w) => {
+      const match = w.exercises.find(e => e.name === ex.name);
+      return match ? Math.max(best, bestOneRM(match)) : best;
+    }, 0);
+    if (current > historicalBest) {
+      prs.push({ name: ex.name, oneRM: current });
+    }
+  }
+  return prs;
+}
+
 function toDisplayWeight(lbsVal) {
   const v = parseFloat(lbsVal) || 0;
   return s.unit === 'kg' ? Math.round(v * 0.453592 * 10) / 10 : v;
@@ -263,12 +318,14 @@ function finishWorkout() {
     if (saveError) {
       showImportStatus('No connection — workout saved locally and will sync next time you open the app.', 'error');
     }
+    const prs = detectPRs(finished, s.history);
     s.history.unshift(finished);
     cancelRest();
     s.workout = null;
     renderWorkout();
     renderHistory();
     switchTab('history');
+    if (prs.length > 0) showPRModal(prs);
   };
   if (s.workout.exercises.length === 0) {
     showConfirm('Finish workout with no exercises logged?', proceed);
@@ -546,6 +603,8 @@ function renderHistory() {
     return;
   }
 
+  const prMap = computeHistoryPRs(s.history);
+
   el.innerHTML = s.history.map(w => {
     const sets    = w.exercises.reduce((n, e) => n + e.sets.length, 0);
     const vol     = totalVol(w);
@@ -570,19 +629,21 @@ function renderHistory() {
           </svg>
         </div>
         <div class="hist-details">
-          ${w.exercises.map(ex => `
+          ${w.exercises.map(ex => {
+            const isPR = prMap[w.id]?.[ex.name];
+            const hasSets = ex.sets.some(set => set.reps || set.weight);
+            return `
             <div class="hist-ex">
-              <div class="hist-ex-name">${esc(ex.name)}</div>
+              <div class="hist-ex-name">${esc(ex.name)}${isPR ? '<span class="pr-badge">PR</span>' : ''}</div>
               <div class="hist-sets">
                 ${ex.sets.filter(set => set.reps || set.weight).map(set => {
                   const wVal = toDisplayWeight(set.weight);
                   return `<span class="hist-set-tag">${set.reps || 0} × ${wVal} ${s.unit}</span>`;
                 }).join('')}
-                ${ex.sets.every(set => !set.reps && !set.weight)
-                  ? '<span style="color:var(--text3);font-size:12px">No data logged</span>' : ''}
+                ${!hasSets ? '<span style="color:var(--text3);font-size:12px">No data logged</span>' : ''}
               </div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       </div>`;
   }).join('');
@@ -684,12 +745,12 @@ function renderStrengthChart() {
   sorted.forEach(w => {
     const ex = w.exercises.find(e => e.name === name);
     if (!ex) return;
-    const maxW = Math.max(...ex.sets.map(s2 => parseFloat(s2.weight) || 0));
-    if (maxW > 0) {
+    const rm = bestOneRM(ex);
+    if (rm > 0) {
       const d = new Date(w.startTime);
       points.push({
         label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value: s.unit === 'kg' ? Math.round(maxW * 0.453592 * 10) / 10 : maxW,
+        value: s.unit === 'kg' ? Math.round(rm * 0.453592 * 10) / 10 : rm,
       });
     }
   });
@@ -758,6 +819,16 @@ function showConfirm(msg, cb) {
     confirmCb?.();
   };
   openModal('modal-confirm');
+}
+
+function showPRModal(prs) {
+  const unit = s.unit;
+  const mult = unit === 'kg' ? 0.453592 : 1;
+  document.getElementById('pr-list').innerHTML = prs.map(pr => {
+    const val = Math.round(pr.oneRM * mult * 10) / 10;
+    return `<div class="pr-item"><span class="pr-item-name">${esc(pr.name)}</span><span class="pr-item-val">${val} ${unit} est. 1RM</span></div>`;
+  }).join('');
+  openModal('modal-pr');
 }
 
 // ─── Timer Tabs ───────────────────────────────────────────────────────────────

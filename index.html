@@ -163,7 +163,7 @@
 
         <!-- Strength chart -->
         <div class="chart-card">
-          <div class="chart-title">Strength Progress</div>
+          <div class="chart-title">Estimated 1RM Progress</div>
           <select id="exercise-picker" class="exercise-select" onchange="renderStrengthChart()"></select>
           <canvas id="chart-strength"></canvas>
           <div id="strength-empty" style="display:none;text-align:center;color:var(--text3);font-size:13px;padding:16px 0">
@@ -240,6 +240,20 @@
       <p id="confirm-msg" style="font-size:17px;line-height:1.5;margin-bottom:24px;color:var(--text)"></p>
       <button class="btn btn-danger btn-full" id="confirm-yes">Confirm</button>
       <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="closeModal('modal-confirm')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PR Celebration Modal -->
+<div class="modal-overlay" id="modal-pr" onclick="onOverlayClick(event,'modal-pr')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-body" style="padding-top:24px;text-align:center">
+      <div style="font-size:52px;margin-bottom:8px">🏆</div>
+      <h2 style="margin-bottom:4px">Personal Record!</h2>
+      <p style="color:var(--text2);font-size:14px;margin-bottom:20px">You hit a new all-time best</p>
+      <div id="pr-list"></div>
+      <button class="btn btn-primary btn-full" style="margin-top:20px" onclick="closeModal('modal-pr')">Let's go!</button>
     </div>
   </div>
 </div>
