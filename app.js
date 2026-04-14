@@ -668,6 +668,26 @@ function switchTab(tab) {
 // ─── Progress / Charts ────────────────────────────────────────────────────────
 let chartVolume   = null;
 let chartStrength = null;
+let chartMuscle   = null;
+
+// Maps every built-in exercise to a muscle group
+const MUSCLE_GROUP_MAP = {
+  'Bench Press': 'Chest', 'Incline Bench Press': 'Chest', 'Decline Bench Press': 'Chest',
+  'Dumbbell Fly': 'Chest', 'Push-ups': 'Chest', 'Cable Fly': 'Chest',
+  'Squat': 'Legs', 'Front Squat': 'Legs', 'Leg Press': 'Legs',
+  'Romanian Deadlift': 'Legs', 'Leg Curl': 'Legs', 'Leg Extension': 'Legs',
+  'Calf Raise': 'Legs', 'Hip Thrust': 'Legs',
+  'Deadlift': 'Back', 'Barbell Row': 'Back', 'Pull-ups': 'Back', 'Chin-ups': 'Back',
+  'Lat Pulldown': 'Back', 'Cable Row': 'Back', 'Seated Row': 'Back', 'Face Pull': 'Back',
+  'Overhead Press': 'Shoulders', 'Lateral Raise': 'Shoulders', 'Front Raise': 'Shoulders',
+  'Arnold Press': 'Shoulders', 'Cable Lateral Raise': 'Shoulders',
+  'Bicep Curl': 'Biceps', 'Hammer Curl': 'Biceps', 'Preacher Curl': 'Biceps', 'Cable Curl': 'Biceps',
+  'Tricep Extension': 'Triceps', 'Skull Crushers': 'Triceps', 'Tricep Pushdown': 'Triceps',
+  'Close-Grip Bench': 'Triceps', 'Dips': 'Triceps',
+  'Plank': 'Core', 'Sit-ups': 'Core', 'Crunches': 'Core', 'Leg Raises': 'Core', 'Russian Twist': 'Core',
+  'Running': 'Cardio', 'Cycling': 'Cardio', 'Jump Rope': 'Cardio', 'Rowing Machine': 'Cardio', 'Stair Climber': 'Cardio',
+};
+const MUSCLE_ORDER = ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio'];
 
 function chartDefaults() {
   return {
@@ -693,8 +713,78 @@ function renderProgress() {
   document.getElementById('progress-charts').style.display = '';
 
   renderVolumeChart(sorted);
+  renderMuscleChart(sorted);
   populateExercisePicker(sorted);
   renderStrengthChart();
+}
+
+function renderMuscleChart(sorted) {
+  // Use last 28 days of workouts
+  const cutoff = Date.now() - 28 * 24 * 60 * 60 * 1000;
+  const recent = sorted.filter(w => w.startTime >= cutoff);
+  const source = recent.length > 0 ? recent : sorted; // fall back to all-time if <28d
+
+  // Count total sets per muscle group
+  const counts = {};
+  MUSCLE_ORDER.forEach(g => counts[g] = 0);
+  for (const w of source) {
+    for (const ex of w.exercises) {
+      const group = MUSCLE_GROUP_MAP[ex.name];
+      if (group) counts[group] += ex.sets.length;
+    }
+  }
+
+  const emptyEl = document.getElementById('muscle-empty');
+  const canvas  = document.getElementById('chart-muscle');
+  const total   = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  if (total === 0) {
+    emptyEl.style.display = '';
+    canvas.style.display  = 'none';
+    if (chartMuscle) { chartMuscle.destroy(); chartMuscle = null; }
+    return;
+  }
+  emptyEl.style.display = 'none';
+  canvas.style.display  = '';
+
+  const label = recent.length > 0 ? 'Last 28 days · sets per muscle group' : 'All time · sets per muscle group';
+  document.getElementById('muscle-period-label').textContent = label;
+
+  const labels = MUSCLE_ORDER.filter(g => counts[g] > 0 || true); // keep all so shape is consistent
+  const data   = MUSCLE_ORDER.map(g => counts[g]);
+
+  if (chartMuscle) chartMuscle.destroy();
+  chartMuscle = new Chart(canvas, {
+    type: 'radar',
+    data: {
+      labels: MUSCLE_ORDER,
+      datasets: [{
+        data,
+        borderColor: 'rgba(255, 107, 53, 0.9)',
+        backgroundColor: 'rgba(255, 107, 53, 0.18)',
+        pointBackgroundColor: 'rgba(255, 107, 53, 1)',
+        pointRadius: 4,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          beginAtZero: true,
+          ticks: { display: false },
+          grid:       { color: '#2a2a2a' },
+          angleLines: { color: '#2a2a2a' },
+          pointLabels: {
+            color: '#8e8e93',
+            font: { size: 11 },
+          },
+        },
+      },
+    },
+  });
 }
 
 function renderVolumeChart(sorted) {
