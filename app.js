@@ -291,6 +291,52 @@ function cancelWorkout() {
   });
 }
 
+// ─── Readiness ────────────────────────────────────────────────────────────────
+async function loadReadiness() {
+  try {
+    const res = await fetchWithTimeout(`${API}/readiness`, { headers: apiHeaders() }, 20000);
+    if (!res.ok) return;
+    const d = await res.json();
+    renderReadiness(d);
+  } catch { /* silently skip if server is cold — not critical */ }
+}
+
+function renderReadiness(d) {
+  const card = document.getElementById('readiness-card');
+  if (!d || d.zone === 'no_data') { card.style.display = 'none'; return; }
+
+  const ZONE_COLORS = {
+    undertrained: '#6c8eff',
+    optimal:      '#4ecdc4',
+    caution:      '#ffc107',
+    overreaching: '#ff453a',
+  };
+  const ZONE_LABELS = {
+    undertrained: 'Undertrained',
+    optimal:      'Optimal',
+    caution:      'Caution',
+    overreaching: 'Overreaching',
+  };
+
+  const color = ZONE_COLORS[d.zone] || '#888';
+  const circumference = 2 * Math.PI * 26; // r=26
+  const filled = (d.score / 100) * circumference;
+
+  document.getElementById('readiness-score').textContent = d.score;
+  document.getElementById('readiness-arc').style.stroke = color;
+  document.getElementById('readiness-arc').setAttribute('stroke-dasharray', `${filled} ${circumference}`);
+
+  const zoneEl = document.getElementById('readiness-zone');
+  zoneEl.textContent = ZONE_LABELS[d.zone] || d.zone;
+  zoneEl.style.color = color;
+
+  document.getElementById('readiness-msg').textContent  = d.message;
+  document.getElementById('readiness-meta').textContent =
+    `ACWR ${d.acwr}  ·  7d load ${d.acute_load.toLocaleString()}  ·  28d avg ${d.chronic_load.toLocaleString()}`;
+
+  card.style.display = '';
+}
+
 function showLoading(msg = 'Saving workout…') {
   const el = document.getElementById('loading-overlay');
   el.querySelector('.loading-text').textContent = msg;
@@ -326,6 +372,7 @@ function finishWorkout() {
     renderHistory();
     switchTab('history');
     if (prs.length > 0) showPRModal(prs);
+    loadReadiness();
   };
   if (s.workout.exercises.length === 0) {
     showConfirm('Finish workout with no exercises logged?', proceed);
@@ -1228,6 +1275,7 @@ async function init() {
   await syncPendingWorkouts();
   renderHistory();
   renderWorkout();
+  loadReadiness();
 
 
   // Unregister all service workers — they interfere with API calls in development

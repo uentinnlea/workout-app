@@ -4,10 +4,12 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from database import SessionLocal, User, Workout
 from typing import Any
 import uuid
+import math
+import numpy as np
 
 app = FastAPI()
 
@@ -125,3 +127,101 @@ def delete_workout(workout_id: str, user_id: str = Depends(get_current_user)):
     db.commit()
     db.close()
     return {"status": "deleted"}
+
+
+# ── Readiness / ACWR model ────────────────────────────────────────────────────
+#
+# Acute:Chronic Workload Ratio (ACWR) — a sports-science model used by
+# professional teams to quantify injury risk and training readiness.
+#
+# Method: exponential weighted moving average (EWMA) of daily volume load.
+#   • Acute load  = EWMA over 7 days  (what you did recently)
+#   • Chronic load = EWMA over 28 days (your baseline fitness)
+#   • ACWR = acute / chronic
+#
+# Sweet spot: 0.8 – 1.3  →  trained but not overloaded
+# > 1.5          →  injury / overreaching risk
+# < 0.8          →  undertrained / deload territory
+#
+# Readiness score (0–100): Gaussian centred at ACWR = 1.0, σ = 0.3
+
+def _ewma(data: np.ndarray, span: int) -> np.ndarray:
+    """Exponential weighted moving average (same formula as pandas ewm(span=))."""
+    alpha = 2.0 / (span + 1)
+    out = np.empty(len(data))
+    out[0] = data[0]
+    for i in range(1, len(data)):
+        out[i] = alpha * data[i] + (1 - alpha) * out[i - 1]
+    return out
+
+
+@app.get("/readiness")
+def get_readiness(user_id: str = Depends(get_current_user)):
+    db = SessionLocal()
+    workouts = db.query(Workout).filter(Workout.user_id == user_id).all()
+    db.close()
+
+    if not workouts:
+        return {
+            "score": None, "acwr": None,
+            "acute_load": 0, "chronic_load": 0,
+            "zone": "no_data",
+            "message": "Log some workouts to get a readiness score.",
+        }
+
+    # ── Build a daily volume-load map ─────────────────────────────────────────
+    daily: dict[date, float] = {}
+    for w in workouts:
+        day = datetime.utcfromtimestamp(w.start_time / 1000).date()
+        vol = sum(
+            (float(s.get("weight") or 0)) * (int(s.get("reps") or 0))
+            for ex in (w.exercises or [])
+            for s in ex.get("sets", [])
+        )
+        daily[day] = daily.get(day, 0.0) + vol
+
+    # 35-day window (28 chronic + 7 buffer for EWMA warm-up)
+    today = datetime.utcnow().date()
+    window = 35
+    days   = [today - timedelta(days=i) for i in range(window - 1, -1, -1)]
+    loads  = np.array([daily.get(d, 0.0) for d in days], dtype=float)
+
+    acute_arr   = _ewma(loads, span=7)
+    chronic_arr = _ewma(loads, span=28)
+
+    acute   = float(acute_arr[-1])
+    chronic = float(chronic_arr[-1])
+
+    # ── ACWR & readiness score ────────────────────────────────────────────────
+    if chronic < 1.0:
+        # Not enough training history for a meaningful chronic baseline
+        acwr = 1.0 if acute < 1.0 else min(acute / 100, 2.0)
+    else:
+        acwr = acute / chronic
+
+    # Gaussian readiness: peak 100 at ACWR=1.0, sigma=0.3
+    score = int(round(100 * math.exp(-((acwr - 1.0) ** 2) / (2 * 0.3 ** 2))))
+    score = max(0, min(100, score))
+
+    # ── Zone classification ───────────────────────────────────────────────────
+    if acwr < 0.8:
+        zone    = "undertrained"
+        message = "Load is low — you're well recovered. Good day to train hard."
+    elif acwr <= 1.3:
+        zone    = "optimal"
+        message = "You're in the sweet spot — train at full intensity today."
+    elif acwr <= 1.5:
+        zone    = "caution"
+        message = "Training load is elevated — keep today moderate."
+    else:
+        zone    = "overreaching"
+        message = "Very high load — consider rest or light active recovery."
+
+    return {
+        "score":        score,
+        "acwr":         round(acwr, 2),
+        "acute_load":   round(acute),
+        "chronic_load": round(chronic),
+        "zone":         zone,
+        "message":      message,
+    }

@@ -144,6 +144,41 @@ body {
 .pad { padding: 18px 16px 32px; }
 
 /* ── Empty state ── */
+/* ── Readiness card ── */
+#readiness-card {
+  background: var(--surface);
+  border-radius: var(--r);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.readiness-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.readiness-ring-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+.readiness-ring { width: 72px; height: 72px; transform: rotate(-90deg); }
+.ring-bg   { stroke: var(--surface2); }
+.ring-fill { stroke: #4ecdc4; transition: stroke-dasharray 0.6s ease, stroke 0.4s ease; }
+.readiness-score {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+.readiness-info { flex: 1; min-width: 0; }
+.readiness-zone { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.readiness-msg  { font-size: 13px; color: var(--text2); line-height: 1.4; margin-bottom: 4px; }
+.readiness-meta { font-size: 11px; color: var(--text3); }
+
 .empty-state {
   display: flex;
   flex-direction: column;

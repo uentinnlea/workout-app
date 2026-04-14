@@ -6,3 +6,4 @@ bcrypt==4.0.1
 python-jose[cryptography]
 pydantic
 psycopg2-binary
+numpy

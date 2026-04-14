@@ -46,6 +46,26 @@
 
       <!-- Idle state -->
       <div id="state-idle">
+
+        <!-- Readiness card -->
+        <div id="readiness-card" style="display:none">
+          <div class="readiness-row">
+            <div class="readiness-ring-wrap">
+              <svg class="readiness-ring" viewBox="0 0 64 64">
+                <circle class="ring-bg"    cx="32" cy="32" r="26" fill="none" stroke-width="6"/>
+                <circle class="ring-fill"  cx="32" cy="32" r="26" fill="none" stroke-width="6"
+                        id="readiness-arc" stroke-dasharray="0 163" stroke-dashoffset="41"/>
+              </svg>
+              <span class="readiness-score" id="readiness-score">—</span>
+            </div>
+            <div class="readiness-info">
+              <div class="readiness-zone" id="readiness-zone"></div>
+              <div class="readiness-msg"  id="readiness-msg"></div>
+              <div class="readiness-meta" id="readiness-meta"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="empty-state">
           <div class="hero-icon">🏋️</div>
           <h2>Ready to train?</h2>
